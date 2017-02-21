@@ -90,8 +90,17 @@ class ModelManager
 		$files = [];
 
 		foreach($dirs as $file) {
-			if (is_file($file = $this->path.'/'.$file) AND 
-				$this->isModel($class = $this->parsePathToClass($file))) {
+			$info = pathinfo($filepath = $this->path.'/'.$file);
+
+			if (! is_file($filepath) OR empty($info['filename'])) {
+				continue;
+			}
+
+			if (! in_array($info['filename'], $this->getClassesFromFile($filepath))) {
+				continue;
+			}
+
+			if ($this->isModel($class = $this->makeClass($info['filename']))) {
 				$refClass = new ReflectionClass($class);
 
 				$files[] = [
@@ -102,14 +111,53 @@ class ModelManager
 					'mutator_count' => $this->getMutators($class)->count(),
 					'accessor_count' => $this->getAccessors($class)->count(),
 					'scope_count' => $this->getScopes($class)->count(),
-					'soft_deletes' => $this->isUseSoftDeletes($class) ? "\033[32myes\033[0m" : "\033[31mno\033[0m",
+					'soft_deletes' => $this->isUseSoftDeletes($class)
+										? $this->paintString('Yes', 'green')
+										: $this->paintString('No', 'red')
 				];
 			}
 		}
 
 		return new Collection($files);
 	}
+	/**
+	 * get classes of file
+	 *
+	 * @param string $filepath
+	 * @return array
+	 */
+	protected function getClassesFromFile($filepath)
+	{
+		$phpCode = file_get_contents($filepath);
 
+		$classes = $this->getPhpClasses($phpCode);
+
+		return $classes;
+	}
+
+	/**
+	 * get classes of file
+	 *
+	 * @param string $filepath
+	 * @return array
+	 */
+	protected function getPhpClasses($phpCode)
+	{
+		$classes = [];
+		$tokens = token_get_all($phpCode);
+		$count = count($tokens);
+
+		for ($i = 2; $i < $count; $i++) {
+			if ($tokens[$i - 2][0] == T_CLASS
+			    && $tokens[$i - 1][0] == T_WHITESPACE
+			    && $tokens[$i][0] == T_STRING) {
+			    $className = $tokens[$i][1];
+			    $classes[] = $className;
+			}
+		}
+
+		return $classes;
+	}
 	/**
 	 * get table of model
 	 *
@@ -127,7 +175,7 @@ class ModelManager
 					return $this->paintString($table, 'green');
 				}
 	
-				return $this->paintString("{$table}", 'white', 'red');
+				return $this->paintString("{$table} (not exists)", 'white', 'red');
 
 			}
 
@@ -163,19 +211,6 @@ class ModelManager
 		}
 
 		return $primaryKey;
-	}
-
-	/**
-	 * parse path to class
-	 *
-	 * @param string $filepath
-	 * @return otbject model
-	 */
-	public function parsePathToClass($filepath)
-	{
-		$info = pathinfo($filepath);
-
-		return $this->makeClass($info['filename']);
 	}
 
 	/**
@@ -311,8 +346,15 @@ class ModelManager
 		
 		foreach ($methods as $method) {
 			try {
-				$relationClass = $model->$method();
 				$relationMethod = new ReflectionMethod($model, $method);
+
+				if (count($params = $relationMethod->getParameters()) > 0) {
+					foreach ($params as $param) {
+						if (! $param->isDefaultValueAvailable()) continue 2;
+					}
+				}
+
+				$relationClass = $model->$method();
 
 				if ($relationClass instanceof Relation) {
 					$filtered[] = $convertToObject
@@ -320,7 +362,7 @@ class ModelManager
 									: $relationMethod;
 				}
 			} catch (Exception $e) {
-				//don't do anything
+				//
 			}
 		}
 

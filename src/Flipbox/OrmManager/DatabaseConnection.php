@@ -9,6 +9,27 @@ use Illuminate\Support\Collection;
 class DatabaseConnection
 {
 	/**
+	 * doctrine
+	 *
+	 * @var SchmeManager
+	 */
+	protected $doctrine;
+
+	/**
+	 * Create a new DatabaseConnection instance.
+	 *
+	 * @return void
+	 */
+	public function __construct()
+	{
+		$this->doctrine = DB::getDoctrineSchemaManager();
+
+		$platform = $this->doctrine->getDatabasePlatform();
+
+		$platform->registerDoctrineTypeMapping('enum', 'string');
+	}
+
+	/**
 	 * check database connection
 	 *
 	 * @return boolean
@@ -16,7 +37,7 @@ class DatabaseConnection
 	public function isConnected()
 	{
 		try {
-		    DB::connection()->getPdo();
+			DB::connection()->getPdo();
 		    return true;
 		} catch (Exception $e) {
 			return false;
@@ -31,15 +52,7 @@ class DatabaseConnection
 	public function getTables()
 	{
 		try {
-			$tables = DB::select('SHOW TABLES');
-			
-			$results = [];
-			
-			foreach ($tables as $table) {
-				$results[] = $table->Tables_in_orm;
-			}
-
-			return $results;
+			return $this->doctrine->listTableNames();
 		} catch (Exception $e) {
 			return [];
 		}
@@ -56,7 +69,7 @@ class DatabaseConnection
 		$fileds = [];
 
 		try {
-			$table = DB::getDoctrineSchemaManager()->listTableDetails($table);
+			$table = $this->doctrine->listTableDetails($table);
 
 			foreach ($table->getColumns() as $column) {
 				$primaryKey =  $table->hasPrimaryKey()
