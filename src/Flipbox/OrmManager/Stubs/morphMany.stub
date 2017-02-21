@@ -1,0 +1,7 @@
+    /**
+     * Get all of the DummyModel's DummyMethodName.
+     */
+    public function DummyMethodName()
+    {
+        return $this->morphMany(DummyToModel::class, 'name', 'type', 'id', 'primary_key');
+    }

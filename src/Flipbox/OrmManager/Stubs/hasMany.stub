@@ -1,0 +1,7 @@
+    /**
+     * Get the DummyMethodName of DummyModel.
+     */
+    public function DummyMethodName()
+    {
+        return $this->hasMany(DummyToModel::class, 'foreign_key', 'primary_key');
+    }

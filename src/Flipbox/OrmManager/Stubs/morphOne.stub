@@ -1,0 +1,7 @@
+    /**
+     * Get the DummyModel's DummyMethodName.
+     */
+    public function DummyMethodName()
+    {
+        return $this->morphOne(DummyToModel::class, 'name', 'type', 'id', 'primary_key');
+    }

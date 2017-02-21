@@ -1,0 +1,7 @@
+    /**
+     * Get all of the DummyMethodName for the DummyModel.
+     */
+    public function DummyMethodName()
+    {
+        return $this->hasManyThrough(DummyToModel::class, DummyIntermediateModel::class, 'foreign_key_1', 'foreign_key_2', 'primary_key');
+    }

@@ -1,0 +1,7 @@
+    /**
+     * The DummyMethodName that belong to the DummyModel.
+     */
+    public function DummyMethodName()
+    {
+        return $this->belongsToMany(DummyToModel::class, 'pivot_table', 'foreign_key_1', 'foreign_key_2');
+    }

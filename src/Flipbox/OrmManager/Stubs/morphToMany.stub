@@ -1,0 +1,7 @@
+    /**
+     * Get all of the DummyMethodName for the DummyModel.
+     */
+    public function DummyMethodName()
+    {
+        return $this->morphToMany(DummyToModel::class, 'name', 'table', 'foreign_key', 'related_key');
+    }

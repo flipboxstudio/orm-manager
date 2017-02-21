@@ -1,0 +1,7 @@
+    /**
+     * Get all of the owning DummyMethodName models.
+     */
+    public function DummyMethodName()
+    {
+        return $this->morphTo('name', 'type', 'id');
+    }

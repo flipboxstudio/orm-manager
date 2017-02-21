@@ -1,0 +1,7 @@
+    /**
+     * Get the DummyMethodName that owns the DummyModel
+     */
+    public function DummyMethodName()
+    {
+        return $this->belongsTo(DummyToModel::class, 'foreign_key', 'primary_key');
+    }
