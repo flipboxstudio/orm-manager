@@ -3,19 +3,20 @@
 return [
 	/*
 	|--------------------------------------------------------------------------
-	| Model Base Namespace
+	| Model Base Path
 	|--------------------------------------------------------------------------
-	| base namespace of models
+	| base path of models should be path of folder of model
+	| by default is app/
 	*/
 
-	'namespace' => 'App',
+	'basepath' => app_path(),
 
 	/*
 	|--------------------------------------------------------------------------
-	| Model Base Path
+	| Exclude Directory
 	|--------------------------------------------------------------------------
-	| base path of models
+	| exclude directory for scan inside given basepath
 	*/
 
-	'basepath' => app_path()
+	'exclude_dir' => ['Console', 'Exceptions', 'Http', 'Provid']
 ];

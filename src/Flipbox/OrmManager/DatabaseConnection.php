@@ -22,13 +22,25 @@ class DatabaseConnection
 	 */
 	public function __construct()
 	{
-		$this->doctrine = DB::getDoctrineSchemaManager();
-
-		$platform = $this->doctrine->getDatabasePlatform();
-
-		$platform->registerDoctrineTypeMapping('enum', 'string');
+		$this->initDoctrine();
 	}
-
+	
+	/**
+	 * initialize doctine
+	 *
+	 * @param  
+	 * @return void
+	 */
+	protected function initDoctrine()
+	{
+		try {
+			$this->doctrine = DB::getDoctrineSchemaManager();
+			$platform = $this->doctrine->getDatabasePlatform();
+			$platform->registerDoctrineTypeMapping('enum', 'string');
+		} catch (Exception $e) {
+			//
+		}
+	}
 	/**
 	 * check database connection
 	 *

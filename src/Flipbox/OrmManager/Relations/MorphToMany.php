@@ -5,7 +5,7 @@ namespace Flipbox\OrmManager\Relations;
 use ReflectionClass;
 use Illuminate\Support\Str;
 
-class MorphToMany extends Model
+class MorphToMany extends Relation
 {
     /**
      * required options to replace

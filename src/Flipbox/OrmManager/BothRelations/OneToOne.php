@@ -32,7 +32,7 @@ class OneToOne extends Both
         ]);
 
         $this->options['foreign_key'] = $this->command->choice('what foreign key of both relation?',
-            $this->database->getTableFields($foreignTable)
+            $this->getFields($foreignTable)
         );
 
         $foreignModel = $this->manager->tableToModel($foreignTable);
@@ -40,6 +40,12 @@ class OneToOne extends Both
         if ($foreignModel != $this->toModel) {
             $this->exchangeModelPosition();
         }
+
+        if (! $this->database->isFieldExists($this->model->getTable(), $this->model->getKeyName())) {
+            print("Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}");
+            $this->options['primary_key'] = $this->command->choice("\n choice one!", $this->getFields($modelTable));
+        }
+
     }
 
     /**

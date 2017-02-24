@@ -8,11 +8,11 @@ use Illuminate\Support\Str;
 use Illuminate\Console\Command;
 use Flipbox\OrmManager\FontColor;
 use Flipbox\OrmManager\ModelManager;
+use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\Exceptions\TableNotExists;
 use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
 
-abstract class Model
+abstract class Relation
 {
 	use FontColor;
 	
@@ -98,12 +98,16 @@ abstract class Model
 	 *
 	 * @param Command $command
 	 * @param ModelManager $manager
-	 * @param EloquentModel $model
-	 * @param EloquentModel $toModel
+	 * @param Model $model
+	 * @param Model $toModel
 	 * @param array $options
 	 * @return void
 	 */
-	public function __construct(Command $command, ModelManager $manager, EloquentModel $model, $toModel, array $options = [])
+	public function __construct(Command $command,
+								ModelManager $manager,
+								Model $model,
+								Model $toModel = null,
+								array $options = [])
 	{
 		$this->command = $command;
 		$this->manager = $manager;
@@ -129,22 +133,22 @@ abstract class Model
 
 		$toModelName = '';
 		$refModel = new ReflectionClass($this->model);
-		$thisModel = new ReflectionClass($this);
+		$relationModel = new ReflectionClass($this);
 
 		if (! is_null($this->toModel)) {
 			$refToModel = new ReflectionClass($this->toModel);
 			$toModelName = $refToModel ? $refToModel->getShortName() : '';
 		}
 
-		$this->command->question(">>> Creating relation {$refModel->getShortName()} {$thisModel->getShortName()} {$toModelName}")."\n";
+		$this->command->question(">>> Creating relation {$refModel->getShortName()} {$relationModel->getShortName()} {$toModelName}")."\n";
 
 		if ($this->database->isConnected()) {
 			if (! $this->database->isTableExists($this->model->getTable())) {
-				throw new TableNotExists("Table {$this->model->getTable()} doesn't exists.");
+				throw new TableNotExists($this->model->getTable(), $refModel->getShortName());
 			}
 
 			if (! is_null($this->toModel) AND ! $this->database->isTableExists($this->toModel->getTable())) {
-				throw new TableNotExists("Table {$this->toModel->getTable()} doesn't exists.");
+				throw new TableNotExists($this->toModel->getTable(), $refToModel->getShortName());
 			}
 
 			$this->setConnectedRelationOptions();
@@ -195,11 +199,31 @@ abstract class Model
 		$stub = str_replace('DummyModel', strtolower($refModel->getShortName()), $stub);
 		
 		if (! is_null($this->toModel)) {
-			$refToModel = new ReflectionClass($this->reverse ? $this->model : $this->toModel);
-			$stub = str_replace('DummyToModel', $refToModel->getShortName(), $stub);
+			$stub = str_replace('DummyToModel', $this->getRelationClassName(
+				$this->model, $this->toModel
+			), $stub);
 		}
 
 		return $this->applyOptions($this->beforeApplyOptions($stub));
+	}
+
+	/**
+	 * get relation name class
+	 *
+	 * @param Model $model
+	 * @param Model $toModel
+	 * @return data type
+	 */
+	protected function getRelationClassName(Model $model, Model $toModel)
+	{
+		$refModel = new ReflectionClass($model);
+		$refToModel = new ReflectionClass($toModel);
+
+		if ($refModel->getNamespaceName() === $refToModel->getNamespaceName()) {
+			return $refToModel->getShortName();
+		}
+
+		return '\\'.$refToModel->getName();
 	}
 
 	/**

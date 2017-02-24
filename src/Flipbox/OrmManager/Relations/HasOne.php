@@ -4,7 +4,7 @@ namespace Flipbox\OrmManager\Relations;
 
 use Illuminate\Support\Str;
 
-class HasOne extends Model
+class HasOne extends Relation
 {
 	/**
 	 * colored asset text

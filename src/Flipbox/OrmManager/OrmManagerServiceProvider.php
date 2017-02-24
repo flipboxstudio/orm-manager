@@ -12,9 +12,9 @@ class OrmManagerServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // $this->publishes([
-        //     __DIR__.'/Config/orm.php' => config_path('orm.php'),
-        // ], 'config');
+        $this->publishes([
+            __DIR__.'/Config/orm.php' => config_path('orm.php'),
+        ], 'config');
     }
 	
 	/**

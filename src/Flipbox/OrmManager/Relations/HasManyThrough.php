@@ -5,7 +5,7 @@ namespace Flipbox\OrmManager\Relations;
 use ReflectionClass;
 use Illuminate\Support\Str;
 
-class HasManyThrough extends Model
+class HasManyThrough extends Relation
 {
 	/**
 	 * set default options
@@ -38,7 +38,7 @@ class HasManyThrough extends Model
 		$intermediateModel = $this->defaultOptions['intermediate_model'];
 
 		if (! $this->database->isTableExists($intermediateModel->getTable())) {
-			throw new TableNotExists("Table {$intermediateModel->getTable()} doesn't exists.");
+			throw new TableNotExists($intermediateModel->getTable(), get_class($intermediateModel));
 		}
 
 		if (! $this->database->isFieldExists($table = $intermediateModel->getTable(), $foreignKey1 = $this->checkingOptions['foreign_key_1'])) {

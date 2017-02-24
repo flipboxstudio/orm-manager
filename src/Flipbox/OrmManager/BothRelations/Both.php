@@ -120,6 +120,19 @@ abstract class Both
     }
 
     /**
+     * get model fileds
+     *
+     * @param string $table
+     * @return array
+     */
+    protected function getFields($table)
+    {
+        $fileds = $this->database->getTableFields($table);
+
+        return $fileds->pluck('name')->toArray();
+    }
+    
+    /**
      * preparation oprations
      *
      * @return void

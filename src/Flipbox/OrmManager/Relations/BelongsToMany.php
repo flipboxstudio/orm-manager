@@ -4,7 +4,7 @@ namespace Flipbox\OrmManager\Relations;
 
 use Illuminate\Support\Str;
 
-class BelongsToMany extends Model
+class BelongsToMany extends Relation
 {
 	/**
 	 * maps

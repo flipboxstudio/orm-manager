@@ -8,13 +8,24 @@ use ReflectionMethod;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;
-use Flipbox\OrmManager\Exceptions\FolderNotFound;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class ModelManager
 {
-	use FontColor;
+	/**
+	 * base path
+	 *
+	 * @var string
+	 */
+	protected $path;
+
+	/**
+	 * config
+	 *
+	 * @var array
+	 */
+	protected $config;
 
 	/**
 	 * database connection
@@ -24,18 +35,11 @@ class ModelManager
 	public $database;
 
 	/**
-	 * base namespace
+	 * models
 	 *
-	 * @var string
+	 * @var array
 	 */
-	protected $namespace;
-
-	/**
-	 * base path
-	 *
-	 * @var string
-	 */
-	protected $path;
+	protected $models;
 
 	/**
 	 * relations
@@ -48,7 +52,6 @@ class ModelManager
 		'morphTo', 'morphOne', 'morphMany',
 		'morphToMany', 'morphedByMany' 
 	];
-
 
 	/**
 	 * relations
@@ -68,149 +71,135 @@ class ModelManager
 	 */
 	public function __construct(array $config)
 	{
+		$this->config = $config;
 		$this->database = new DatabaseConnection;
-		$this->namespace = $config['namespace'];
-		$this->path = $config['basepath'];
+		$this->path = $this->config['basepath'];
+
+		$this->models = $this->scandModels();
 	}
 
 	/**
 	 * get model list
 	 *
-	 * @param boolean $checkTable
 	 * @return Collection
 	 */
-	public function getModels($checkTable = false)
+	public function getModels()
+	{
+		return new Collection($this->models);
+	}
+
+	/**
+	 * scand models from path
+	 *
+	 * @param  string $path
+	 * @return array
+	 */
+	protected function scandModels($path=null)
 	{
 		try {
-			$dirs = scandir($this->path);
+			$dirs = scandir($path = $path ?: $this->path);
 		} catch (Exception $e) {
-			throw new FolderNotFound('Directory not found '.$this->path);
+			return [];
 		}
 
-		$files = [];
+		$models = [];
 
-		foreach($dirs as $file) {
-			$info = pathinfo($filepath = $this->path.'/'.$file);
+		foreach($this->filterDirectory($dirs) as $file) {
+			$info = pathinfo($filepath = $path.'/'.$file);
 
-			if (! is_file($filepath) OR empty($info['filename'])) {
+			if (is_dir($filepath)) {
+				$models = array_merge($models, $this->scandModels($filepath));
+			}
+
+			if (! $this->isValidFileModel($info)) {
 				continue;
 			}
 
-			if (! in_array($info['filename'], $this->getClassesFromFile($filepath))) {
-				continue;
-			}
-
-			if ($this->isModel($class = $this->makeClass($info['filename']))) {
-				$refClass = new ReflectionClass($class);
-
-				$files[] = [
-					'name' => $refClass->getShortName(),
-					'table' => $this->getTable($class, $checkTable),
-					'primary_key' => $this->getPrimaryKey($class, $checkTable),
-					'relation_count' => $this->getRelationCount($class),
-					'mutator_count' => $this->getMutators($class)->count(),
-					'accessor_count' => $this->getAccessors($class)->count(),
-					'scope_count' => $this->getScopes($class)->count(),
-					'soft_deletes' => $this->isUseSoftDeletes($class)
-										? $this->paintString('Yes', 'green')
-										: $this->paintString('No', 'red')
-				];
+			if ($this->isValidModel($class = $this->makeClassFileInfo($info))) {
+				$models[] = $this->petchModel($class);
 			}
 		}
 
-		return new Collection($files);
+		return $models;
 	}
+
 	/**
-	 * get classes of file
+	 * filter directory
 	 *
-	 * @param string $filepath
+	 * @param array $dirs
 	 * @return array
 	 */
-	protected function getClassesFromFile($filepath)
+	protected function filterDirectory($dirs)
 	{
-		$phpCode = file_get_contents($filepath);
+		foreach ($dirs as $key => $dir) {
+			if (in_array($dir, ['.', '..'])
+				OR in_array($dir, $this->config['exclude_dir'])) {
 
-		$classes = $this->getPhpClasses($phpCode);
+				unset($dirs[$key]);
+			}
+		}
 
-		return $classes;
+		return $dirs;
 	}
 
 	/**
-	 * get classes of file
+	 * patch model
 	 *
-	 * @param string $filepath
+	 * @param Model $class
 	 * @return array
 	 */
-	protected function getPhpClasses($phpCode)
+	protected function petchModel(Model $class)
 	{
-		$classes = [];
-		$tokens = token_get_all($phpCode);
-		$count = count($tokens);
+		$refClass = new ReflectionClass($class);
 
-		for ($i = 2; $i < $count; $i++) {
-			if ($tokens[$i - 2][0] == T_CLASS
-			    && $tokens[$i - 1][0] == T_WHITESPACE
-			    && $tokens[$i][0] == T_STRING) {
-			    $className = $tokens[$i][1];
-			    $classes[] = $className;
-			}
-		}
-
-		return $classes;
-	}
-	/**
-	 * get table of model
-	 *
-	 * @param Model $model
-	 * @param boolean $paint
-	 * @return string
-	 */
-	protected function getTable(Model $model, $paint = false)
-	{
-		$table = $model->getTable();
-
-		if ($paint) {
-			if ($this->database->isConnected()) {
-				if ($this->database->isTableExists($table)) {
-					return $this->paintString($table, 'green');
-				}
-	
-				return $this->paintString("{$table} (not exists)", 'white', 'red');
-
-			}
-
-			return $this->paintString($table, 'red');
-		}
-
-		return $table;
+		return [
+			'namespace' => $refClass->getNamespaceName(),
+			'name' => $refClass->getShortName(),
+			'table' => $this->getTable($class),
+			'primary_key' => $this->getPrimaryKey($class),
+			'relation_count' => $this->getRelations($class)->count(),
+			'mutator_count' => $this->getMutators($class)->count(),
+			'accessor_count' => $this->getAccessors($class)->count(),
+			'scope_count' => $this->getScopes($class)->count(),
+			'soft_deletes' => $this->isUseSoftDeletes($class)
+		];
 	}
 
 	/**
 	 * get table of model
 	 *
 	 * @param Model $model
-	 * @param boolean $paint
 	 * @return string
 	 */
-	protected function getPrimaryKey(Model $model, $paint = false)
+	protected function getTable(Model $model)
 	{
-		$table = $model->getTable();
-		$primaryKey = $model->getKeyName();
+		return $model->getTable();
+	}
 
-		if ($paint) {
-			if ($this->database->isConnected()){
-				if ($this->database->isTableExists($table)
-					AND $this->database->isFieldExists($table, $primaryKey)) {
-					return $this->paintString($primaryKey, 'green');
-				}
+	/**
+	 * get table of model
+	 *
+	 * @param Model $model
+	 * @return string
+	 */
+	protected function getPrimaryKey(Model $model)
+	{
+		return $model->getKeyName();
+	}
 
-				return $this->paintString("{$primaryKey} (not exists)", 'white', 'red');
-			}
+	/**
+	 * check path is file of model
+	 *
+	 * @param string $fileInfo
+	 * @return boolean
+	 */
+	public function isValidFileModel(array $fileInfo)
+	{
+		extract($fileInfo);
 
-			return $this->paintString($primaryKey, 'red');
-		}
-
-		return $primaryKey;
+		return is_file($filepath = $dirname.'/'.$basename)
+			AND ! empty($filename)
+			AND (in_array($filename, (new FileGetContent($filepath))->getClasses()));
 	}
 
 	/**
@@ -219,7 +208,7 @@ class ModelManager
 	 * @param object $model
 	 * @return boolean
 	 */
-	public function isModel($model)
+	public function isValidModel($model)
 	{
 		return is_subclass_of($model, Model::class);
 	}
@@ -232,9 +221,11 @@ class ModelManager
 	 */
 	public function tableToModel($table)
 	{
-		$model = $this->getModels()->where('table', $table)->first();
+		if ($model = $this->getModels()->where('table', $table)->first()) {
+			return $this->makeClass($model['name']);
+		}
 
-		return $this->makeClass($model['name']);
+		throw new ModelNotFound($table);		
 	}
 
 	/**
@@ -263,16 +254,42 @@ class ModelManager
 	/**
 	 * instantiate class model by name
 	 *
+	 * @param string $fileInfo
+	 * @return string
+	 */
+	protected function makeClassFileInfo(array $fileInfo)
+	{
+		extract($fileInfo);
+
+		if (file_exists($filepath = $dirname.'/'.$basename)) {
+			$namespace = (new FileGetContent($filepath))->getNamespace();
+
+			$refClass = new ReflectionClass($namespace.'\\'.$filename);
+
+			return $refClass->newInstanceWithoutConstructor();
+		}
+
+		throw new ModelNotFound($filename);
+	}
+
+	/**
+	 * instantiate class model by name
+	 *
 	 * @param string $className
 	 * @return string
 	 */
 	public function makeClass($className)
 	{
-		$class = $this->namespace.'\\'.$className;
+		if ($this->isModelExists($className)) {
+			$model = $this->getModels()->where('name', $className)->first();
+			$class = $model['namespace'].'\\'.$className;
+			$refClass = new ReflectionClass($class);
 
-		$refClass = new ReflectionClass($class);
+			return $refClass->newInstanceWithoutConstructor();
+		}
 
-		return $refClass->newInstanceWithoutConstructor();
+		throw new ModelNotFound($filename);
+
 	}
 
 	/**
@@ -322,17 +339,6 @@ class ModelManager
 	}
 
 	/**
-	 * get relation count
-	 *
-	 * @param Model $model
-	 * @return int
-	 */
-	public function getRelationCount(Model $model)
-	{
-		return $this->getRelations($model)->count();
-	}
-
-	/**
 	 * filter model method
 	 *
 	 * @param Model $model
@@ -340,7 +346,7 @@ class ModelManager
 	 * @param bool $convertToObject
 	 * @return array
 	 */
-	protected function filterRelationMethods(Model $model, array $methods, $convertToObject = true)
+	protected function filterRelationMethods(Model $model, array $methods, $convertToObject=true)
 	{
 		$filtered = [];
 		

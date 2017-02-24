@@ -6,7 +6,7 @@ use ReflectionClass;
 use Illuminate\Support\Str;
 use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
 
-class MorphTo extends Model
+class MorphTo extends Relation
 {
 	/**
 	 * method suffix

@@ -5,11 +5,14 @@ namespace Flipbox\OrmManager\Consoles;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Config\Repository;
+use Flipbox\OrmManager\FontColor;
 use Flipbox\OrmManager\ModelManager;
 use Flipbox\OrmManager\DatabaseConnection;
 
 class ModelList extends Command
 {
+    use FontColor;
+
 	/**
 	 * database connection
 	 *
@@ -67,12 +70,72 @@ class ModelList extends Command
 		if (!$this->database->isConnected()) {
 			$this->warn("Not Connected to databse, please check your connection config\r");
 		}
-		
+
 		if (count($models) > 0) {
-			$header = ['Model', 'Table', 'PrimaryKey', 'Relations', 'Mutators', 'Accessor', 'Scope', 'Soft Deletes'];
-			return $this->table($header, $models);
+			$header = ['Namespace', 'Model', 'Table', 'PrimaryKey', 'Relations', 'Mutators', 'Accessor', 'Scope', 'Soft Deletes'];
+
+			return $this->table($header, $models->map(function($model){
+                $table = $model['table'];
+                $model['name'] = $this->paintString($model['name'], 'white');
+                $model['table'] = $this->paintTable($table);
+                $model['primary_key'] = $this->paintPrimaryKey($table, $model['primary_key']);
+                $model['soft_deletes'] = $this->paintSoftDeletes($model['soft_deletes']);
+                return $model;
+            }));
 		}
 
 		$this->error('No models found');
 	}
+
+    /**
+     * paint table
+     *
+     * @param string $table
+     * @return string
+     */
+    protected function paintTable($table)
+    {
+        if ($this->database->isConnected()) {
+            if ($this->database->isTableExists($table)) {
+                return $this->paintString($table, 'green');
+            }
+
+            return $this->paintString($table, 'white', 'red');
+        }
+
+        return $this->paintString($table, 'red');
+    }
+
+    /**
+     * paint primary key
+     *
+     * @param bool $primaryKey
+     * @return string
+     */
+    protected function paintPrimaryKey($table, $primaryKey)
+    {
+        if ($this->database->isConnected()) {
+            if ($this->database->isTableExists($table)
+                AND $this->database->isFieldExists($table, $primaryKey)) {
+
+                return $this->paintString($primaryKey, 'green');
+            }
+
+            return $this->paintString($primaryKey, 'white', 'red');
+        }
+
+        return $this->paintString($primaryKey, 'red');
+    }
+
+    /**
+     * paint soft delete
+     *
+     * @param bool $use
+     * @return string
+     */
+    protected function paintSoftDeletes($use)
+    {
+        return $use ? $this->paintString('yes', 'green')
+                    : $this->paintString('no', 'red');
+    }
 }
