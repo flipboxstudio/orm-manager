@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace Flipbox\OrmManager;
 
@@ -50,7 +50,7 @@ class ModelManager
 		'hasOne', 'hasMany', 'belongsTo',
 		'belongsToMany', 'hasManyThrough',
 		'morphTo', 'morphOne', 'morphMany',
-		'morphToMany', 'morphedByMany' 
+		'morphToMany', 'morphedByMany'
 	];
 
 	/**
@@ -190,7 +190,7 @@ class ModelManager
 	/**
 	 * check path is file of model
 	 *
-	 * @param string $fileInfo
+	 * @param array $fileInfo
 	 * @return boolean
 	 */
 	public function isValidFileModel(array $fileInfo)
@@ -199,7 +199,22 @@ class ModelManager
 
 		return is_file($filepath = $dirname.'/'.$basename)
 			AND ! empty($filename)
-			AND (in_array($filename, (new FileGetContent($filepath))->getClasses()));
+			AND (in_array($filename, (new FileGetContent($filepath))->getClasses()))
+			AND ! $this->classIsAbstract($filepath, $filename);
+	}
+
+	/**
+	 * Checks weather class is an abstract or not
+	 * @param  string  $filepath Class Filepath
+	 * @param  string  $filename Class Filename
+	 * @return boolean           abstract class or not
+	 */
+	public function classIsAbstract(string $filepath, string $filename)
+	{
+	    $namespace = (new FileGetContent($filepath))->getNamespace();
+
+		$refClass = new ReflectionClass($namespace.'\\'.$filename);
+		return $refClass->isAbstract();
 	}
 
 	/**
@@ -225,7 +240,7 @@ class ModelManager
 			return $this->makeClass($model['name']);
 		}
 
-		throw new ModelNotFound($table);		
+		throw new ModelNotFound($table);
 	}
 
 	/**
@@ -254,7 +269,8 @@ class ModelManager
 	/**
 	 * instantiate class model by name
 	 *
-	 * @param string $fileInfo
+	 * @param array $fileInfo
+	 * @throws ModelNotFound exception if file doesn't exists
 	 * @return string
 	 */
 	protected function makeClassFileInfo(array $fileInfo)
@@ -349,7 +365,7 @@ class ModelManager
 	protected function filterRelationMethods(Model $model, array $methods, $convertToObject=true)
 	{
 		$filtered = [];
-		
+
 		foreach ($methods as $method) {
 			try {
 				$relationMethod = new ReflectionMethod($model, $method);
@@ -424,7 +440,7 @@ class ModelManager
 	protected function filterMethods(Model $model, array $methods, $prefix='set', $suffix='Attribute')
 	{
 		$filtered = [];
-		
+
 		foreach ($methods as $method) {
 			$search = $suffix ? "(.*?)" : "(.*)";
 
