@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace Flipbox\OrmManager;
 
@@ -50,7 +50,7 @@ class ModelManager
 		'hasOne', 'hasMany', 'belongsTo',
 		'belongsToMany', 'hasManyThrough',
 		'morphTo', 'morphOne', 'morphMany',
-		'morphToMany', 'morphedByMany' 
+		'morphToMany', 'morphedByMany'
 	];
 
 	/**
@@ -225,7 +225,7 @@ class ModelManager
 			return $this->makeClass($model['name']);
 		}
 
-		throw new ModelNotFound($table);		
+		throw new ModelNotFound($table);
 	}
 
 	/**
@@ -265,6 +265,9 @@ class ModelManager
 			$namespace = (new FileGetContent($filepath))->getNamespace();
 
 			$refClass = new ReflectionClass($namespace.'\\'.$filename);
+
+			if ($refClass->isAbstract())
+				return null;
 
 			return $refClass->newInstanceWithoutConstructor();
 		}
@@ -349,7 +352,7 @@ class ModelManager
 	protected function filterRelationMethods(Model $model, array $methods, $convertToObject=true)
 	{
 		$filtered = [];
-		
+
 		foreach ($methods as $method) {
 			try {
 				$relationMethod = new ReflectionMethod($model, $method);
@@ -424,7 +427,7 @@ class ModelManager
 	protected function filterMethods(Model $model, array $methods, $prefix='set', $suffix='Attribute')
 	{
 		$filtered = [];
-		
+
 		foreach ($methods as $method) {
 			$search = $suffix ? "(.*?)" : "(.*)";
 
