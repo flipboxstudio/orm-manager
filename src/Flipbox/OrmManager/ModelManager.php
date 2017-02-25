@@ -190,7 +190,7 @@ class ModelManager
 	/**
 	 * check path is file of model
 	 *
-	 * @param string $fileInfo
+	 * @param array $fileInfo
 	 * @return boolean
 	 */
 	public function isValidFileModel(array $fileInfo)
@@ -199,7 +199,22 @@ class ModelManager
 
 		return is_file($filepath = $dirname.'/'.$basename)
 			AND ! empty($filename)
-			AND (in_array($filename, (new FileGetContent($filepath))->getClasses()));
+			AND (in_array($filename, (new FileGetContent($filepath))->getClasses()))
+			AND ! $this->classIsAbstract($filepath, $filename);
+	}
+
+	/**
+	 * Checks weather class is an abstract or not
+	 * @param  string  $filepath Class Filepath
+	 * @param  string  $filename Class Filename
+	 * @return boolean           abstract class or not
+	 */
+	public function classIsAbstract(string $filepath, string $filename)
+	{
+	    $namespace = (new FileGetContent($filepath))->getNamespace();
+
+		$refClass = new ReflectionClass($namespace.'\\'.$filename);
+		return $refClass->isAbstract();
 	}
 
 	/**
@@ -254,7 +269,8 @@ class ModelManager
 	/**
 	 * instantiate class model by name
 	 *
-	 * @param string $fileInfo
+	 * @param array $fileInfo
+	 * @throws ModelNotFound exception if file doesn't exists
 	 * @return string
 	 */
 	protected function makeClassFileInfo(array $fileInfo)
@@ -265,9 +281,6 @@ class ModelManager
 			$namespace = (new FileGetContent($filepath))->getNamespace();
 
 			$refClass = new ReflectionClass($namespace.'\\'.$filename);
-
-			if ($refClass->isAbstract())
-				return null;
 
 			return $refClass->newInstanceWithoutConstructor();
 		}
