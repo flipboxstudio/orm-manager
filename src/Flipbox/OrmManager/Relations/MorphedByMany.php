@@ -2,12 +2,6 @@
 
 namespace Flipbox\OrmManager\Relations;
 
-use ReflectionClass;
-use Illuminate\Support\Str;
-use Illuminate\Console\Command;
-use Flipbox\OrmManager\ModelManager;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
-
 class MorphedByMany extends MorphToMany
 {
     /**

@@ -5,20 +5,22 @@ namespace Flipbox\OrmManager\Consoles;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Config\Repository;
-use Flipbox\OrmManager\FontColor;
 use Flipbox\OrmManager\ModelManager;
 use Flipbox\OrmManager\DatabaseConnection;
+use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelList extends Command
 {
-    use FontColor;
+    use LocalComand, FontColor {
+        FontColor::paintstring insteadof LocalComand;
+    }
 
 	/**
 	 * database connection
 	 *
 	 * @var DatabaseConnection
 	 */
-	protected $database;
+	protected $db;
 
 	/**
 	 * model manager
@@ -50,8 +52,8 @@ class ModelList extends Command
     {
     	parent::__construct();
 
-    	$this->database = new DatabaseConnection;
-    	$this->model = new ModelManager($config->get('orm'));
+        $this->db = new DatabaseConnection;
+    	$this->manager = new ModelManager($config->get('orm'), $this->db);
     }
 
     /**
@@ -62,13 +64,13 @@ class ModelList extends Command
 	public function handle()
 	{
 		try {
-			$models = $this->model->getModels(true);
+			$models = $this->manager->getModels(true);
 		} catch (Exception $e) {
 			return $this->error($e->getMessage());
 		}
 
-		if (!$this->database->isConnected()) {
-			$this->warn("Not Connected to databse, please check your connection config\r");
+		if (!$this->db->isConnected()) {
+			$this->warn("Not Connected to databse, please check your connection config");
 		}
 
 		if (count($models) > 0) {
@@ -95,8 +97,8 @@ class ModelList extends Command
      */
     protected function paintTable($table)
     {
-        if ($this->database->isConnected()) {
-            if ($this->database->isTableExists($table)) {
+        if ($this->db->isConnected()) {
+            if ($this->db->isTableExists($table)) {
                 return $this->paintString($table, 'green');
             }
 
@@ -114,9 +116,9 @@ class ModelList extends Command
      */
     protected function paintPrimaryKey($table, $primaryKey)
     {
-        if ($this->database->isConnected()) {
-            if ($this->database->isTableExists($table)
-                AND $this->database->isFieldExists($table, $primaryKey)) {
+        if ($this->db->isConnected()) {
+            if ($this->db->isTableExists($table)
+                AND $this->db->isFieldExists($table, $primaryKey)) {
 
                 return $this->paintString($primaryKey, 'green');
             }

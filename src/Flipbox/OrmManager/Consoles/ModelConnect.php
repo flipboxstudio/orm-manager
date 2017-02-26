@@ -9,17 +9,30 @@ use Illuminate\Console\Command;
 use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
+use Flipbox\OrmManager\DatabaseConnection;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;
 use Flipbox\OrmManager\Exceptions\RelationNotAvailable;
+use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelConnect extends Command
 {
+	use LocalComand, FontColor {
+        FontColor::paintstring insteadof LocalComand;
+    }
+
 	/**
 	 * model manager
 	 *
 	 * @var ModelManager
 	 */
 	protected $manager;
+
+    /**
+     * database
+     *
+     * @var ModelManager
+     */
+    protected $db;
 
     /**
      * The console command name.
@@ -45,8 +58,8 @@ class ModelConnect extends Command
 	public function __construct(Repository $config)
 	{
 		parent::__construct();
-
-		$this->manager = new ModelManager($config['orm']);
+		$this->db = new DatabaseConnection;
+		$this->manager = new ModelManager($config['orm'], $this->db);
 	}
 
     /**
@@ -191,7 +204,7 @@ class ModelConnect extends Command
 
 			$this->info('Connection has been created');
 		} catch (Exception $e) {
-			return $this->error($e->getMessage());
+			return $this->danger($e->getMessage());
 		}
 	}
 

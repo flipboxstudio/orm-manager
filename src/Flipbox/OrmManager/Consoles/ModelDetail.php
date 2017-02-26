@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
+use Flipbox\OrmManager\DatabaseConnection;
 
 class ModelDetail extends Command
 {
@@ -22,7 +23,7 @@ class ModelDetail extends Command
      *
      * @var ModelManager
      */
-    protected $database;
+    protected $db;
 
     /**
      * The console command name.
@@ -47,8 +48,8 @@ class ModelDetail extends Command
     {
         parent::__construct();
 
-        $this->manager = new ModelManager($config->get('orm'));
-        $this->database = $this->manager->database;
+        $this->db = new DatabaseConnection;
+        $this->manager = new ModelManager($config->get('orm'), $this->db);
     }
 
     /**
@@ -79,14 +80,14 @@ class ModelDetail extends Command
 
         $this->question("Detail of Model {$refClass->getShortName()}");
 
-        if (!$this->database->isConnected()) {
+        if (!$this->db->isConnected()) {
             $this->warn("Not Connected to databse, please check your connection config\r");
         }
 
         $this->info("table : {$model->getTable()}");
         $this->info("foreign key : {$model->getKeyName()}");
     
-        if ($this->database->isConnected()) {
+        if ($this->db->isConnected()) {
             $this->showTableFileds($model);
         }
 
@@ -106,7 +107,7 @@ class ModelDetail extends Command
     {
         $this->info("model table");
         
-        $fields = $this->database->getTableFields($model->getTable());
+        $fields = $this->db->getTableFields($model->getTable());
         $header = ['name', 'type','null','length', 'unsigned', 'autoincrement', 'primary_key', 'foreign_key'];
         $this->table($header, $fields);
     }

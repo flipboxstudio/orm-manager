@@ -6,16 +6,14 @@ use Exception;
 use ReflectionClass;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
-use Flipbox\OrmManager\FontColor;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
+use Flipbox\OrmManager\DatabaseConnection;
 use Flipbox\OrmManager\Exceptions\TableNotExists;
 use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
 
 abstract class Relation
 {
-	use FontColor;
-	
 	/**
 	 * laravel Command
 	 *
@@ -94,6 +92,13 @@ abstract class Relation
 	protected $reverse = false;
 
 	/**
+	 * colored asset text
+	 *
+	 * @var array
+	 */
+	protected $text = [];
+
+	/**
 	 * Create a new Model instance.
 	 *
 	 * @param Command $command
@@ -106,48 +111,57 @@ abstract class Relation
 	public function __construct(Command $command,
 								ModelManager $manager,
 								Model $model,
-								Model $toModel = null,
-								array $options = [])
+								Model $toModel=null,
+								array $options=[])
 	{
 		$this->command = $command;
 		$this->manager = $manager;
-		$this->database = $this->manager->database;
+		$this->db = $this->manager->db;
 		$this->model = $this->reverse ? $toModel : $model;
 		$this->toModel = $this->reverse ? $model : $toModel;
 
-		$this->setRelationOptions($options);
+		$this->showCaptionProcess($model, $toModel);
+		$this->setDefaultOptions($options);
+		$this->stylingText();
+		$this->setRelationOptions();
+	}
+
+	/**
+	 * show captions process
+	 *
+	 * @param Model $model
+	 * @param Model $toModel
+	 * @return void
+	 */
+	protected function showCaptionProcess(Model $model, Model $toModel=null)
+	{
+		$toModelName = '';
+		$refModel = new ReflectionClass($model);
+		$relationModel = new ReflectionClass($this);
+
+		if (! is_null($toModel)) {
+			$refToModel = new ReflectionClass($toModel);
+			$toModelName = $refToModel ? $refToModel->getShortName() : '';
+		}
+
+		$caption = " >>> Creating relation {$refModel->getShortName()} {$relationModel->getShortName()} {$toModelName} : ";
+
+		$this->command->title($caption, 'white', 'blue');
 	}
 
 	/**
 	 * set relation option required
 	 *
-	 * @param array $options
 	 * @return void
 	 */
-	protected function setRelationOptions(array $options=[])
+	protected function setRelationOptions()
 	{
-		$this->checkingOptions = $options;
-		$this->setDefaultOptions();
-		$this->checkingOptions = array_merge($this->defaultOptions, $options);
-		$this->preparationSetOptions();
-
-		$toModelName = '';
-		$refModel = new ReflectionClass($this->model);
-		$relationModel = new ReflectionClass($this);
-
-		if (! is_null($this->toModel)) {
-			$refToModel = new ReflectionClass($this->toModel);
-			$toModelName = $refToModel ? $refToModel->getShortName() : '';
-		}
-
-		$this->command->question(">>> Creating relation {$refModel->getShortName()} {$relationModel->getShortName()} {$toModelName}")."\n";
-
-		if ($this->database->isConnected()) {
-			if (! $this->database->isTableExists($this->model->getTable())) {
+		if ($this->db->isConnected()) {
+			if (! $this->db->isTableExists($this->model->getTable())) {
 				throw new TableNotExists($this->model->getTable(), $refModel->getShortName());
 			}
 
-			if (! is_null($this->toModel) AND ! $this->database->isTableExists($this->toModel->getTable())) {
+			if (! is_null($this->toModel) AND ! $this->db->isTableExists($this->toModel->getTable())) {
 				throw new TableNotExists($this->toModel->getTable(), $refToModel->getShortName());
 			}
 
@@ -156,13 +170,6 @@ abstract class Relation
 			$this->setNotConnectedRelationOptions();
 		}
 	}
-
-	/**
-	 * preparation set options
-	 *
-	 * @return void
-	 */
-	protected function preparationSetOptions() {}
 
 	/**
 	 * create method in the model
@@ -216,8 +223,8 @@ abstract class Relation
 	 */
 	protected function getRelationClassName(Model $model, Model $toModel)
 	{
-		$refModel = new ReflectionClass($model);
-		$refToModel = new ReflectionClass($toModel);
+		$refModel = new ReflectionClass($this->reverse ? $toModel : $model);
+		$refToModel = new ReflectionClass($this->reverse ? $model : $toModel);
 
 		if ($refModel->getNamespaceName() === $refToModel->getNamespaceName()) {
 			return $refToModel->getShortName();
@@ -370,19 +377,18 @@ abstract class Relation
 	protected function setNotConnectedRelationOptions()
 	{
 		$this->command->warn('Can\'t connect to the database, plase confirm to follow instruction!');
-		
+
 		$rules = $this->getRelationOptionsRules();
-		
+
 		array_walk($rules, function(&$rule, $key) use ($rules) {
-			$rule = ' '.($key+1).'. '.$rule;
+			$rule = ($key+1).'. '.$rule;
 		});
 
-		print(implode("\n", $rules));
-
-		$confirm = 'confirm that you will create the database schema as above!';
+		$rules[] = 'confirm that you will create the database schema as above!';
+		$confirm = implode("\n ", $rules);
 
 		if (! $this->command->confirm($confirm, true)) {
-			$this->command->warn('Use custome options to connect model?');
+			$this->command->warn('You are trying to use custome options to connect models!');
 			$this->askToUseCustomeOptions();
 		}
 	}
@@ -395,7 +401,7 @@ abstract class Relation
 	 */
 	protected function getFields($table)
 	{
-		$fileds = $this->database->getTableFields($table);
+		$fileds = $this->db->getTableFields($table);
 
 		return $fileds->pluck('name')->toArray();
 	}
@@ -403,9 +409,17 @@ abstract class Relation
 	/**
 	 * set default options
 	 *
+	 * @param array $options
 	 * @return void
 	 */
-	abstract protected function setDefaultOptions();
+	abstract protected function setDefaultOptions(array $options=[]);
+	
+	/**
+	 * styling text
+	 *
+	 * @return void
+	 */
+	abstract protected function stylingText();
 
 	/**
 	 * get connected db relation options

@@ -4,7 +4,7 @@ namespace Flipbox\OrmManager\BothRelations;
 
 use ReflectionClass;
 
-class OneToOne extends Both
+class OneToOne extends BothRelation
 {
     /**
      * check is position model is valid
@@ -40,12 +40,6 @@ class OneToOne extends Both
         if ($foreignModel != $this->toModel) {
             $this->exchangeModelPosition();
         }
-
-        if (! $this->database->isFieldExists($this->model->getTable(), $this->model->getKeyName())) {
-            print("Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}");
-            $this->options['primary_key'] = $this->command->choice("\n choice one!", $this->getFields($modelTable));
-        }
-
     }
 
     /**

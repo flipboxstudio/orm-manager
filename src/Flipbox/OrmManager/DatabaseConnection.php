@@ -9,6 +9,13 @@ use Illuminate\Support\Collection;
 class DatabaseConnection
 {
 	/**
+	 * check connection
+	 *
+	 * @var bool
+	 */
+	protected $connection = null;
+
+	/**
 	 * doctrine
 	 *
 	 * @var SchmeManager
@@ -26,7 +33,7 @@ class DatabaseConnection
 	}
 	
 	/**
-	 * initialize doctine
+	 * initialize doctrine
 	 *
 	 * @param  
 	 * @return void
@@ -37,10 +44,12 @@ class DatabaseConnection
 			$this->doctrine = DB::getDoctrineSchemaManager();
 			$platform = $this->doctrine->getDatabasePlatform();
 			$platform->registerDoctrineTypeMapping('enum', 'string');
+			$this->connection = true;
 		} catch (Exception $e) {
-			//
+			$this->connection = false;
 		}
 	}
+
 	/**
 	 * check database connection
 	 *
@@ -48,12 +57,7 @@ class DatabaseConnection
 	 */
 	public function isConnected()
 	{
-		try {
-			DB::connection()->getPdo();
-		    return true;
-		} catch (Exception $e) {
-			return false;
-		}
+		return $this->connection;
 	}
 
 	/**
@@ -63,6 +67,10 @@ class DatabaseConnection
 	 */
 	public function getTables()
 	{
+		if (! $this->isConnected()) {
+			return [];
+		}
+
 		try {
 			return $this->doctrine->listTableNames();
 		} catch (Exception $e) {
@@ -78,8 +86,12 @@ class DatabaseConnection
 	 */
 	public function getTableFields($table)
 	{
-		$fileds = [];
+		if (! $this->isConnected()) {
+			return [];
+		}
 
+		$fileds = [];
+		
 		try {
 			$table = $this->doctrine->listTableDetails($table);
 

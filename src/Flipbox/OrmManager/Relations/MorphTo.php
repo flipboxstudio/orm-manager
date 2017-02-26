@@ -32,16 +32,19 @@ class MorphTo extends Relation
 	/**
 	 * set default options
 	 *
+	 * @param $options
 	 * @return void
 	 */
-	protected function setDefaultOptions()
+	protected function setDefaultOptions(array $options=[])
 	{
-		if (! isset($this->checkingOptions['name'])) {		
+		$this->text['relation_name_text'] = $this->command->paintString('relation name', 'brown');
+
+		if (! isset($options['name'])) {		
 			$refModel = new ReflectionClass($this->model);
 			$name = $this->getRelationName(strtolower($refModel->getShortName()));
-	        $name = $this->command->ask('What relation name do you use?', $name);
+	        $name = $this->command->ask("What {$this->text['relation_name_text']} do you use?", $name);
 		} else {
-			$name = $this->checkingOptions['name'];
+			$name = $options['name'];
 		}
 
 		$this->defaultOptions = [
@@ -49,6 +52,24 @@ class MorphTo extends Relation
 			'type' => $this->getTypeName($name),
 			'id' => $this->getIdName($name)
 		];
+
+		$this->checkingOptions = array_merge($this->defaultOptions, $options);
+	}
+
+	/**
+	 * styling text
+	 *
+	 * @return void
+	 */
+	protected function stylingText()
+	{
+		$this->text['model_table'] = "[".$this->command->paintString($this->model->getTable(), 'green')."]";
+		$this->text['name'] = "[".$this->command->paintString($this->checkingOptions['name'], 'green')."]";
+		$this->text['type'] = "[".$this->command->paintString($this->checkingOptions['type'], 'green')."]";
+		$this->text['id'] = "[".$this->command->paintString($this->checkingOptions['id'], 'green')."]";
+		$this->text['related_type_text'] = $this->command->paintString('related type', 'brown');
+		$this->text['related_id_text'] = $this->command->paintString('related id', 'brown');
+
 	}
 
 	/**
@@ -58,27 +79,22 @@ class MorphTo extends Relation
 	 */
 	protected function setConnectedRelationOptions()
 	{
-		$fields = $this->database->getTableFields($this->model->getTable());
+		$fields = $this->getFields($this->model->getTable());
+		$name = $this->checkingOptions['name'];
 
-		if (! isset($this->checkingOptions['name'])) {		
-			$refModel = new ReflectionClass($this->model);
-			$name = $this->getRelationName(strtolower($refModel->getShortName()));
-	        $name = $this->command->ask('What relation name do you use?', $name);
-		} else {
-			$name = $this->checkingOptions['name'];
+		if (! in_array($this->checkingOptions['type'], $fields) 
+			OR ! in_array($this->checkingOptions['id'], $fields)) {
+			$this->options['name'] = $name = $this->command->ask("Can't find {$this->text['type']} or {$this->text['id']} in the table {$this->text['model_table']}, you may not use {$this->text['name']} as {$this->text['relation_name_text']}, what are you using?");
+			$this->text['type'] = "[".$this->command->paintString($this->getTypeName($name), 'green')."]";
+			$this->text['id'] = "[".$this->command->paintString($this->getIdName($name), 'green')."]";
 		}
 
-		if (! in_array($this->defaultOptions['type'], $fields) 
-			OR ! in_array($this->defaultOptions['id'], $fields)) {
-			$this->options['name'] = $name = $this->command->ask("Can't find {$this->defaultOptions['type']} OR {$this->defaultOptions['id']}, you may not use {$this->defaultOptions['name']} as relation name, what are you using?");
+		if (! in_array($this->getTypeName($name), $fields)) {
+			$this->options['type'] = $this->command->choice("Can't find {$this->text['type']} as {$this->text['related_type_text']}, what are you using?", $fields);
 		}
 
-		if (! in_array($this->getTypeName($name ?: null), $fields)) {
-			$this->options['type'] = $this->command->choice("Can't find {$this->defaultOptions['type']}, what are you using?", $fields);
-		}
-
-		if (! in_array($this->getIdName($name ?: null), $fields)) {
-			$this->options['id'] = $this->command->choice("Can't find {$this->defaultOptions['id']}, what are you using?", $fields);
+		if (! in_array($this->getIdName($name), $fields)) {
+			$this->options['id'] = $this->command->choice("Can't find {$this->text['id']} as {$this->text['related_id_text']}, what are you using?", $fields);
 		}
 	}
 
@@ -90,9 +106,9 @@ class MorphTo extends Relation
 	protected function getRelationOptionsRules()
 	{
 		return [
-			"Relation name is {$this->defaultOptions['name']}",
-			"There should be field {$this->defaultOptions['type']} in table {$this->model->getTable()}",
-			"There should be field {$this->defaultOptions['id']} in table {$this->model->getTable()}",
+			"The {$this->text['relation_name_text']} is {$this->text['name']}",
+			"There should be field {$this->text['type']} in table {$this->text['model_table']} as {$this->text['related_type_text']}",
+			"There should be field {$this->text['id']} in table {$this->text['model_table']} as {$this->text['related_id_text']}",
 		];
 	}
 
@@ -103,9 +119,9 @@ class MorphTo extends Relation
 	 */
 	protected function askToUseCustomeOptions()
 	{
-		$this->options['name'] = $this->command->ask("The name of relation is will be?", $this->defaultOptions['name']);
-		$this->options['type'] = $this->command->ask("The type of relation is will be?", $this->getTypeName($this->options['name']));
-		$this->options['id'] = $this->command->ask("The name of relation is will be?", $this->getIdName($this->options['name']));
+		$this->options['name'] = $this->command->ask("The {$this->text['relation_name_text']} of relation is will be?", $this->defaultOptions['name']);
+		$this->options['type'] = $this->command->ask("The {$this->text['related_type_text']} of relation is will be?", $this->getTypeName($this->options['name']));
+		$this->options['id'] = $this->command->ask("The {$this->text['related_id_text']} of relation is will be?", $this->getIdName($this->options['name']));
 	}
 
 	/**
@@ -157,7 +173,13 @@ class MorphTo extends Relation
      */
     protected function getMethodName($name)
     {
-    	return $this->getRelationName($name);
+		$methodName = $this->getRelationName($name);
+
+		if ($this->checkingOptions['name'] !== $methodName) {
+			return $this->checkingOptions['name'];
+		}
+
+		return $methodName;
     }
 
 	/**

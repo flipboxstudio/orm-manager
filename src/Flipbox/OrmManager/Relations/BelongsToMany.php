@@ -14,18 +14,12 @@ class BelongsToMany extends Relation
 	protected $maps;
 
 	/**
-	 * colored asset text
-	 *
-	 * @var array
-	 */
-	private $text;
-
-	/**
 	 * set default options
 	 *
+	 * @param array $options
 	 * @return void
 	 */
-	protected function setDefaultOptions()
+	protected function setDefaultOptions(array $options=[])
 	{
 		$tables = [
 			'model' => $this->model->getTable(),
@@ -38,25 +32,27 @@ class BelongsToMany extends Relation
 
 		$no = 1;
 		foreach ($tables as $key => $table) {
-			$foreignKey = $table.'_'.$this->$key->getKeyName();
+			$foreignKey = Str::singular($table).'_'.$this->$key->getKeyName();
 			$this->defaultOptions['foreign_key_'.($no++)] = $foreignKey;
 			$this->maps[$foreignKey] = $this->manager->tableToModel($table);
 		}
+
+		$this->checkingOptions = array_merge($this->defaultOptions, $options);
 	}
 
 	/**
-	 * preparation set options
+	 * styling text
 	 *
 	 * @return void
 	 */
-	protected function preparationSetOptions()
+	protected function stylingText()
 	{
 		$pivotTable = $this->checkingOptions['pivot_table'];
 
 		$this->text = [
-			'pivot_table' => "[".$this->paintString($pivotTable ,'green')."]",
-			'pivot_text' => $this->paintString('pivot table', 'light_gray'),
-			'foreign_text' => $this->paintString('foreign key', 'light_gray'),
+			'pivot_table' => "[".$this->command->paintString($pivotTable ,'green')."]",
+			'pivot_text' => $this->command->paintString('pivot table', 'brown'),
+			'foreign_text' => $this->command->paintString('foreign key', 'brown'),
 		];
 	}
 
@@ -69,25 +65,25 @@ class BelongsToMany extends Relation
 	{
 		$pivotTable = $this->checkingOptions['pivot_table'];
 
-		if (! $this->database->isTableExists($pivotTable)) {
-			print("Can't find table {$this->text['pivot_table']} in the database as {$this->text['pivot_text']}");
+		if (! $this->db->isTableExists($pivotTable)) {
+			$question = "Can't find table {$this->text['pivot_table']} in the database as {$this->text['pivot_text']}, choice one!";
 			$pivotTable = $this->options['pivot_table'] = $this->command->choice(
-				"choice one!", $this->database->getTables());
+				$question, $this->db->getTables());
 
-			$this->text['pivot_table'] = "[".$this->paintString($pivotTable, 'green')."]";
+			$this->text['pivot_table'] = "[".$this->command->paintString($pivotTable, 'green')."]";
 		}
 
 		$key = 1;
 
 		foreach ($this->maps as $foreignKey => $model) {
-			$paintedTable = "[".$this->paintString($model->getTable(), 'green')."]";
+			$paintedTable = "[".$this->command->paintString($model->getTable(), 'green')."]";
 			$foreignKey = $this->checkingOptions['foreign_key_'.$key];
-			$paintedForeignKey = "[".$this->paintString($foreignKey, 'green')."]";
+			$paintedForeignKey = "[".$this->command->paintString($foreignKey, 'green')."]";
 
-			if (! $this->database->isFieldExists($pivotTable, $foreignKey)) {
-				print("Can't find field {$paintedForeignKey} in the table {$this->text['pivot_table']} as {$this->text['foreign_text']} of table {$paintedTable}");
+			if (! $this->db->isFieldExists($pivotTable, $foreignKey)) {
+				$question = "Can't find field {$paintedForeignKey} in the table {$this->text['pivot_table']} as {$this->text['foreign_text']} of table {$paintedTable}, choice one!";
 				$this->options['foreign_key_'.$key] = $this->command->choice(
-					"\n choice one!", $this->getFields($pivotTable));
+					$question, $this->getFields($pivotTable));
 			}
 
 			$key++;
@@ -101,15 +97,15 @@ class BelongsToMany extends Relation
 	 */
 	protected function getRelationOptionsRules()
 	{
-		$this->text['pivot_table'] = "[".$this->paintString($this->defaultOptions['pivot_table'], 'green')."]";
+		$this->text['pivot_table'] = "[".$this->command->paintString($this->defaultOptions['pivot_table'], 'green')."]";
 		$rules = ["There should be table {$this->text['pivot_table']} in the database as {$this->text['pivot_text']}"];
 		
 		$key = 1;
 		
 		foreach ($this->maps as $foreignKey => $model) {
-			$paintedTable = "[".$this->paintString($model->getTable(), 'green')."]";
+			$paintedTable = "[".$this->command->paintString($model->getTable(), 'green')."]";
 			$foreignKey = $this->checkingOptions['foreign_key_'.$key];
-			$paintedForeignKey = "[".$this->paintString($foreignKey, 'green')."]";	
+			$paintedForeignKey = "[".$this->command->paintString($foreignKey, 'green')."]";	
 			$rules[] = "There should be field {$paintedForeignKey} in the table {$this->text['pivot_table']} as {$this->text['foreign_text']} of table {$paintedTable}";
 			$key++;
 		}
@@ -135,20 +131,20 @@ class BelongsToMany extends Relation
 	 */
 	protected function askToUseCustomeOptions()
 	{
-		print("The {$this->text['pivot_text']} in the database");
-		$this->options['pivot_table'] = $this->command->ask(' will be?', $this->defaultOptions['pivot_table']);
-		$this->text['pivot_table'] = "[".$this->paintString($this->options['pivot_table'], 'green')."]";
+		$question = "The {$this->text['pivot_text']} in the database will be?";
+		$this->options['pivot_table'] = $this->command->ask($question, $this->defaultOptions['pivot_table']);
+		$this->text['pivot_table'] = "[".$this->command->paintString($this->options['pivot_table'], 'green')."]";
 
 		$key = 1;
 
 		foreach ($this->maps as $foreignKey => $model) {
-			$paintedTable = "[".$this->paintString($model->getTable(), 'green')."]";
+			$paintedTable = "[".$this->command->paintString($model->getTable(), 'green')."]";
 			$foreignKey = $this->checkingOptions['foreign_key_'.$key];
-			$paintedForeignKey = "[".$this->paintString($foreignKey, 'green')."]";
+			$paintedForeignKey = "[".$this->command->paintString($foreignKey, 'green')."]";
 			
-			print("The {$this->text['foreign_text']} of table {$paintedTable} in the table {$this->text['pivot_table']}");
+			$question = "The {$this->text['foreign_text']} of table {$paintedTable} in the table {$this->text['pivot_table']} will be?";
 			
-			$this->options['foreign_key_'.$key] = $this->command->ask("\n will be?", $this->defaultOptions['foreign_key_'.$key]);
+			$this->options['foreign_key_'.$key] = $this->command->ask($question, $this->defaultOptions['foreign_key_'.$key]);
 			$key++;
 		}
 	}

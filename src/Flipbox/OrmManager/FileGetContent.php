@@ -36,6 +36,16 @@ class FileGetContent
     }
 
     /**
+     * get file
+     *
+     * @return string
+     */
+    public function getFile()
+    {
+        return $this->file;
+    }
+
+    /**
      * get classes of file
      *
      * @param string $filePath

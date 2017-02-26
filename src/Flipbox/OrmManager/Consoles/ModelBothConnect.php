@@ -137,7 +137,6 @@ class ModelBothConnect extends ModelConnect
 
             $bothRelation->buildRelations();
         } catch (Exception $e) {
-            dd($e);
             return $this->error($e->getMessage());
         }
     }

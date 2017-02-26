@@ -10,14 +10,16 @@ class HasManyThrough extends Relation
 	/**
 	 * set default options
 	 *
+	 * @param array $options
 	 * @return void
 	 */
-	protected function setDefaultOptions()
+	protected function setDefaultOptions(array $options=[])
 	{
-		$models = $this->manager->getModels()->pluck('name')->toArray();
+		$this->text['intermediate_text'] = "[".$this->command->paintString('intermediate model' ,'brown')."]";
 
 		$intermediateModel = $this->manager->makeClass(
-								$this->command->choice('Choice intermediate model!', $models)
+								$this->command->choice("Choice {$this->text['intermediate_text']} of both relation!",
+								$this->manager->getModels()->pluck('name')->toArray())
 							 );
 
 		$this->defaultOptions = [
@@ -26,6 +28,25 @@ class HasManyThrough extends Relation
 			'foreign_key_2' => Str::singular($intermediateModel->getTable()).'_'.$intermediateModel->getKeyName(),
 			'primary_key' => $this->model->getKeyName()
 		];
+
+		$this->checkingOptions = array_merge($this->defaultOptions, $options);
+	}
+
+	/**
+	 * styling text
+	 *
+	 * @return void
+	 */
+	protected function stylingText()
+	{
+		$this->text['foreign_key_1'] = "[".$this->command->paintString($this->checkingOptions['foreign_key_1'] ,'green')."]";
+		$this->text['foreign_key_2'] = "[".$this->command->paintString($this->checkingOptions['foreign_key_2'] ,'green')."]";
+		$this->text['primary_key'] = "[".$this->command->paintString($this->checkingOptions['primary_key'] ,'green')."]";
+		$this->text['model_table'] = "[".$this->command->paintString($this->model->getTable() ,'green')."]";
+		$this->text['to_model_table'] = "[".$this->command->paintString($this->toModel->getTable() ,'green')."]";
+		$this->text['intermediate_model_table'] = "[".$this->command->paintString($this->checkingOptions['intermediate_model']->getTable() ,'green')."]";
+		$this->text['foreign_text'] = $this->command->paintString('foreign key', 'brown');
+		$this->text['primary_text'] = $this->command->paintString('primary key', 'brown');
 	}
 
 	/**
@@ -35,30 +56,30 @@ class HasManyThrough extends Relation
 	 */
 	protected function setConnectedRelationOptions()
 	{
-		$intermediateModel = $this->defaultOptions['intermediate_model'];
+		$intermediateModel = $this->checkingOptions['intermediate_model'];
 
-		if (! $this->database->isTableExists($intermediateModel->getTable())) {
+		if (! $this->db->isTableExists($intermediateModel->getTable())) {
 			throw new TableNotExists($intermediateModel->getTable(), get_class($intermediateModel));
 		}
 
-		if (! $this->database->isFieldExists($table = $intermediateModel->getTable(), $foreignKey1 = $this->checkingOptions['foreign_key_1'])) {
+		if (! $this->db->isFieldExists($table = $intermediateModel->getTable(), $this->checkingOptions['foreign_key_1'])) {
 			$this->options['foreign_key_1'] = $this->command->choice(
-				"Can't find field {$foreignKey1} in the table {$table} as foreign key, choice one!",
-				$this->database->getTableFields($table)
+				"Can't find field {$this->text['foreign_key_1']} in the table {$this->text['intermediate_model_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}, choice one!",
+				$this->getFields($table)
 			);
 		}
 
-		if (! $this->database->isFieldExists($table = $this->toModel->getTable(), $foreignKey2 = $this->checkingOptions['foreign_key_2'])) {
+		if (! $this->db->isFieldExists($table = $this->toModel->getTable(), $this->checkingOptions['foreign_key_2'])) {
 			$this->options['foreign_key_2'] = $this->command->choice(
-				"Can't find field {$foreignKey2} in the table {$table} as foreign key, choice one!",
-				$this->database->getTableFields($table)
+				"Can't find field {$this->text['foreign_key_2']} in the table {$this->text['to_model_table']} as {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']}, choice one!",
+				$this->getFields($table)
 			);
 		}
 
-		if (! $this->database->isFieldExists($table = $this->model->getTable(), $primaryKey = $this->checkingOptions['primary_key'])) {
+		if (! $this->db->isFieldExists($table = $this->model->getTable(), $primaryKey = $this->checkingOptions['primary_key'])) {
 			$this->options['primary_key'] = $this->command->choice(
-				"Can't find field {$primaryKey} in the table {$table} as primary key, choice one!",
-				$this->database->getTableFields($table)
+				"Can't find field {$this->text['primary_key']} in the table {$this->text['model_table']} as {$this->text['primary_text']}, choice one!",
+				$this->getFields($table)
 			);
 		}
 	}
@@ -70,12 +91,12 @@ class HasManyThrough extends Relation
 	 */
 	protected function getRelationOptionsRules()
 	{
-		$intermediateModel = $this->defaultOptions['intermediate_model'];
+		$intermediateModel = $this->checkingOptions['intermediate_model'];
 
 		return [
-			"There should be field {$this->defaultOptions['foreign_key_1']} in table {$intermediateModel->getTable()} as foreign key of table {$this->model->getTable()}",
-			"There should be field {$this->defaultOptions['foreign_key_2']} in table {$this->toModel->getTable()} as foreign key of table {$intermediateModel->getTable()}",
-			"There should be field {$this->defaultOptions['primary_key']} in table {$this->model->getTable()} as primary key of table {$this->model->getTable()}"
+			"There should be field {$this->text['foreign_key_1']} in table {$this->text['intermediate_model_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}",
+			"There should be field {$this->text['foreign_key_2']} in table {$this->text['to_model_table']} as {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']}",
+			"There should be field {$this->text['primary_key']} in table {$this->text['model_table']} as {$this->text['primary_text']} of table {$this->text['model_table']}"
 		];
 	}
 	
@@ -97,22 +118,20 @@ class HasManyThrough extends Relation
 	 */
 	protected function askToUseCustomeOptions()
 	{
-		$intermediateModel = $this->defaultOptions['intermediate_model'];
+		$intermediateModel = $this->checkingOptions['intermediate_model'];
 
-		$table = Str::plural(explode('_', $this->defaultOptions['foreign_key_1'])[0]);
 		$this->options['foreign_key_1'] = $this->command->ask(
-									"The foreign key of table {$table} in the table {$intermediateModel->getTable()} will be?",
+									"The {$this->text['foreign_text']} of table {$this->text['model_table']} in the table {$this->text['intermediate_model_table']} will be?",
 									$this->defaultOptions['foreign_key_1']
 								);
 		
-		$table = Str::plural(explode('_', $this->defaultOptions['foreign_key_2'])[0]);
 		$this->options['foreign_key_2'] = $this->command->ask(
-									"The foreign key of table {$table} in the table {$this->model->getTable()} will be?",
+									"The {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']} in the table {$this->text['model_table']} will be?",
 									$this->defaultOptions['foreign_key_2']
 								);
 
 		$this->options['primary_key'] = $this->command->ask(
-									"The primary key of table {$this->model->getTable()} will be?",
+									"The {$this->text['primary_text']} of table {$this->text['model_table']} will be?",
 									$this->defaultOptions['primary_key']
 								);
 
@@ -126,9 +145,16 @@ class HasManyThrough extends Relation
 	 */
 	protected function beforeApplyOptions($stub)
 	{
-		$refModel = new ReflectionClass($this->defaultOptions['intermediate_model']);
+		$refModel = new ReflectionClass($this->model);
+		$refIntermeidateModel = new ReflectionClass($this->defaultOptions['intermediate_model']);
+		
+		$model = $refIntermeidateModel->getShortName();
+		
+		if ($refModel->getNamespaceName() !== $refIntermeidateModel->getNamespaceName()) {
+			$model = '\\'.$refIntermeidateModel->getName();
+		}
 
-		return str_replace('DummyIntermediateModel', $refModel->getShortName(), $stub);
+		return str_replace('DummyIntermediateModel', $model, $stub);
 	}
 
 	/**

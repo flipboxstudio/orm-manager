@@ -5,8 +5,9 @@ namespace Flipbox\OrmManager\BothRelations;
 use Illuminate\Console\Command;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
+use Flipbox\OrmManager\DatabaseConnection;
 
-abstract class Both
+abstract class BothRelation
 {
     /**
      * laravel Command
@@ -62,7 +63,7 @@ abstract class Both
     {
         $this->command = $command;
         $this->manager = $manager;
-        $this->database = $manager->database;
+        $this->database = new DatabaseConnection;
         $this->model = $model;
         $this->toModel = $toModel;
 
@@ -72,7 +73,14 @@ abstract class Both
             $this->repositionModelByKeys();
         }
     }
-    
+
+    /**
+     * preparation oprations
+     *
+     * @return void
+     */
+    protected function preparation() {}
+
     /**
      * reposition model by relations key
      *
@@ -87,6 +95,19 @@ abstract class Both
                 $this->askWhereForeignKeyTable();
             }
         }
+    }
+
+    /**
+     * exchange position model
+     *
+     * @param  
+     * @return void
+     */
+    protected function exchangeModelPosition()
+    {
+        $model = $this->model;
+        $this->model = $this->toModel;
+        $this->toModel = $model;
     }
 
     /**
@@ -107,19 +128,6 @@ abstract class Both
     protected function askWhereForeignKeyTable() {}
 
     /**
-     * exchange position model
-     *
-     * @param  
-     * @return void
-     */
-    protected function exchangeModelPosition()
-    {
-        $model = $this->model;
-        $this->model = $this->toModel;
-        $this->toModel = $model;
-    }
-
-    /**
      * get model fileds
      *
      * @param string $table
@@ -131,13 +139,6 @@ abstract class Both
 
         return $fileds->pluck('name')->toArray();
     }
-    
-    /**
-     * preparation oprations
-     *
-     * @return void
-     */
-    protected function preparation() {}
 
     /**
      * build relations model to model

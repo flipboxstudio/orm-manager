@@ -15,13 +15,6 @@ class MorphToMany extends Relation
     protected $requiredOptions = ['name'];
 
     /**
-     * name of relations
-     *
-     * @var string
-     */
-    protected $name;
-
-    /**
      * method suffix
      *
      * @var string
@@ -31,28 +24,49 @@ class MorphToMany extends Relation
     /**
      * set default options
      *
+     * @param array $options
      * @return void
      */
-    protected function setDefaultOptions()
+    protected function setDefaultOptions(array $options=[])
     {
+        $this->text['relation_name_text'] = $this->command->paintString('relation name', 'brown');
+
         $refToModel = new ReflectionClass($this->toModel);
 
-        if (! isset($this->checkingOptions['name'])) {
-            if (is_null($this->name)) {
-                $name = $this->getRelationName(strtolower($refToModel->getShortName()));
-                $name = $this->command->ask('What relation name do you use?', $name);
-            } else {
-                $name = $this->name;
-            }
+        if (! isset($options['name'])) {
+            $name = $this->getRelationName(strtolower($refToModel->getShortName()));
+            $name = $this->command->ask("What {$this->text['relation_name_text']} do you use?", $name);
         } else {
-            $name = $this->checkingOptions['name'];
+            $name = $options['name'];
         }
         
         $this->defaultOptions = [
             'name' => $name,
-            'table' => Str::plural($name),
+            'pivot_table' => Str::plural($name),
             'foreign_key' => $name.'_id',
             'related_key' => strtolower($refToModel->getShortName()).'_id'
+        ];
+
+        $this->checkingOptions = array_merge($this->defaultOptions, $options);
+    }
+
+    /**
+     * styling text
+     *
+     * @return void
+     */
+    protected function stylingText()
+    {
+        $this->text = [
+            'name' => "[".$this->command->paintString($this->checkingOptions['name'], 'green')."]",
+            'pivot_table' => "[".$this->command->paintString($this->checkingOptions['pivot_table'], 'green')."]",
+            'model_table' => "[".$this->command->paintString($this->model->getTable(), 'green')."]",
+            'to_model_table' => "[".$this->command->paintString($this->toModel->getTable(), 'green')."]",
+            'foreign_key' => "[".$this->command->paintString($this->checkingOptions['foreign_key'], 'green')."]",
+            'related_key' => "[".$this->command->paintString($this->checkingOptions['related_key'], 'green')."]",
+            'pivot_text' => $this->command->paintString('pivot table', 'brown'),
+            'foreign_text' => $this->command->paintString('foreign key', 'brown'),
+            'related_text' => $this->command->paintString('related key', 'brown'),
         ];
     }
     
@@ -76,27 +90,30 @@ class MorphToMany extends Relation
      */
     protected function setConnectedRelationOptions()
     {
-        if (! $this->database->isTableExists($table = $this->checkingOptions['table'])) {
-            $table = $this->options['table'] = $this->command->choice(
-                "Can't find table {$table}, what are you using?",
-                $this->database->getTables()
+        $foreignKey = $this->checkingOptions['foreign_key'];
+
+        if (! $this->db->isTableExists($table = $this->checkingOptions['pivot_table'])) {
+            $table = $this->options['pivot_table'] = $this->command->choice(
+                "Can't find table {$this->text['pivot_table']} as {$this->text['pivot_text']}, what are you using?",
+                $this->db->getTables()
             );
 
-            $this->name = Str::singular($table);
-            $this->setDefaultOptions();
+            $this->text['pivot_table'] = "[".$this->command->paintString($table, 'green')."]";
+            $name = Str::singular($table);
+            $foreignKey = $name.'_id';
         }
 
-        if (! $this->database->isFieldExists($table, $foreignKey = $this->checkingOptions['foreign_key'])) {
+        if (! $this->db->isFieldExists($table, $foreignKey)) {
             $this->options['foreign_key'] = $this->command->choice(
-                "Can't find field {$foreignKey} in the table {$table} as foreign key of table {$this->model->getTable()}, choice one!",
-                $this->database->getTableFields($table)
+                "Can't find field {$this->text['foreign_key']} in the table {$this->text['pivot_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}, choice one!",
+                $this->getFields($table)
             );
         }
 
-        if (! $this->database->isFieldExists($table, $relatedKey = $this->checkingOptions['related_key'])) {
+        if (! $this->db->isFieldExists($table, $this->checkingOptions['related_key'])) {
             $this->options['related_key'] = $this->command->choice(
-                "Can't find field {$relatedKey} in the table {$table} as related key of table {$this->toModel->getTable()}, choice one!",
-                $this->database->getTableFields($table)
+                "Can't find field {$this->text['related_key']} in the table {$this->text['pivot_table']} as {$this->text['related_text']} of table {$this->text['to_model_table']}, choice one!",
+                $this->getFields($table)
             );
         }
     }
@@ -109,9 +126,9 @@ class MorphToMany extends Relation
     protected function getRelationOptionsRules()
     {
         return [
-            "There should be table {$this->defaultOptions['table']} as relation table",
-            "There should be field {$this->defaultOptions['foreign_key']} in the table {$this->defaultOptions['table']} as foreign key of table {$this->model->getTable()}",
-            "There should be field {$this->defaultOptions['related_key']} in the table {$this->defaultOptions['table']} as related key of table {$this->toModel->getTable()}",
+            "There should be table {$this->text['pivot_table']} as {$this->text['pivot_text']} of both relation",
+            "There should be field {$this->text['foreign_key']} in the table {$this->text['pivot_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}",
+            "There should be field {$this->text['related_key']} in the table {$this->text['pivot_table']} as {$this->text['related_text']} of table {$this->text['to_model_table']}",
         ];
     }
 
@@ -122,21 +139,21 @@ class MorphToMany extends Relation
      */
     protected function askToUseCustomeOptions()
     {
-        $this->options['table'] = $this->command->ask(
-                                        "The table of relation will be?",
-                                        $this->defaultOptions['table']
+        $this->options['pivot_table'] = $this->command->ask(
+                                        "The {$this->text['pivot_text']} of both relation will be?",
+                                        $this->defaultOptions['pivot_table']
                                     );
 
-        $this->name = Str::singular($this->options['table']);
-        $this->setDefaultOptions();
+        $name = Str::singular($this->options['pivot_table']);
+        $foreignKey = $name.'_id';
 
         $this->options['foreign_key'] = $this->command->ask(
-                                            "The foreign key of table {$this->model->getTable()} in the table {$this->defaultOptions['table']} will be?",
-                                            $this->defaultOptions['foreign_key']
+                                            "The {$this->text['foreign_text']} of table {$this->text['model_table']} in the table {$this->text['pivot_table']} will be?",
+                                            $foreignKey
                                         );
 
         $this->options['related_key'] = $this->command->ask(
-                                            "The related key of table {$this->toModel->getTable()} in the table {$this->defaultOptions['table']} will be?",
+                                            "The {$this->text['related_text']} of table {$this->text['to_model_table']} in the table {$this->text['pivot_table']} will be?",
                                             $this->defaultOptions['related_key']
                                         );
     }
