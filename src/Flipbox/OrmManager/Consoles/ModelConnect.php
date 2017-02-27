@@ -160,10 +160,21 @@ class ModelConnect extends Command
 	 * get model
 	 *
 	 * @param string $name
+	 * @param bool $multiple
 	 * @return Object
 	 */
-	protected function getModel($name)
+	protected function getModel($name, $multiple=false)
 	{
+		if ($multiple) {
+			$models = [];
+
+			foreach (explode(',', $name) as $model) {
+				$models[] = $this->getModel($model);
+			}
+
+			return $models;
+		}
+
 		if ($this->manager->isModelExists($name)) {
 			return $this->manager->makeClass($name);
 		}
@@ -199,7 +210,6 @@ class ModelConnect extends Command
 	{
 		try {
 			$relation = $this->newRelationInstance($relation, $model, $toModel, $options);
-
 			$relation->createMethod();
 
 			$this->info('Connection has been created');

@@ -2,7 +2,6 @@
 
 namespace Flipbox\OrmManager\Relations;
 
-use Exception;
 use ReflectionClass;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
@@ -33,7 +32,7 @@ abstract class Relation
 	 *
 	 * @var DatabaseConnection
 	 */
-	protected $database;
+	protected $db;
 
 	/**
 	 * model that want to connect to
@@ -71,13 +70,6 @@ abstract class Relation
 	protected $requiredOptions = [];
 
 	/**
-	 * options that will be check
-	 *
-	 * @var array
-	 */
-	protected $checkingOptions = [];
-
-	/**
 	 * new line
 	 *
 	 * @var string
@@ -104,14 +96,14 @@ abstract class Relation
 	 * @param Command $command
 	 * @param ModelManager $manager
 	 * @param Model $model
-	 * @param Model $toModel
+	 * @param mixed $toModel
 	 * @param array $options
 	 * @return void
 	 */
 	public function __construct(Command $command,
 								ModelManager $manager,
 								Model $model,
-								Model $toModel=null,
+								$toModel=null,
 								array $options=[])
 	{
 		$this->command = $command;
@@ -123,7 +115,7 @@ abstract class Relation
 		$this->showCaptionProcess($model, $toModel);
 		$this->setDefaultOptions($options);
 		$this->stylingText();
-		$this->setRelationOptions();
+		$this->setRelationOptions($options);
 	}
 
 	/**
@@ -152,19 +144,22 @@ abstract class Relation
 	/**
 	 * set relation option required
 	 *
+	 * @param array $options
 	 * @return void
 	 */
-	protected function setRelationOptions()
+	protected function setRelationOptions(array $options = [])
 	{
-		if ($this->db->isConnected()) {
-			if (! $this->db->isTableExists($this->model->getTable())) {
-				throw new TableNotExists($this->model->getTable(), $refModel->getShortName());
-			}
+		if (! $this->db->isTableExists($this->model->getTable())) {
+			throw new TableNotExists($this->model->getTable(), $refModel->getShortName());
+		}
 
-			if (! is_null($this->toModel) AND ! $this->db->isTableExists($this->toModel->getTable())) {
-				throw new TableNotExists($this->toModel->getTable(), $refToModel->getShortName());
-			}
+		if (! is_null($this->toModel) AND ! $this->db->isTableExists($this->toModel->getTable())) {
+			throw new TableNotExists($this->toModel->getTable(), $refToModel->getShortName());
+		}
 
+		if (count($options) > 0) {
+			$this->options = $options;
+		} elseif ($this->db->isConnected()) {
 			$this->setConnectedRelationOptions();
 		} else {
 			$this->setNotConnectedRelationOptions();
@@ -185,7 +180,7 @@ abstract class Relation
 		$modelCode = $this->clearDefaultModelContent(
 			file_get_contents($refModel->getFileName())
 		);
-		
+
 		$this->writeMethodToFile($refModel->getFileName(), $modelCode, $methodCode);
 	}
 
@@ -283,8 +278,6 @@ abstract class Relation
 	 */
 	protected function applyOptions($stub)
 	{
-		$this->mergeUnchechingOptions();
-
 		$replaced = false;
 
 		foreach (array_reverse($this->defaultOptions) as $key => $option) {
@@ -319,20 +312,6 @@ abstract class Relation
 		}
 
 		return $stub;
-	}
-
-	/**
-	 * merger unchecking options to options
-	 *
-	 * @return void
-	 */
-	protected function mergeUnchechingOptions()
-	{
-		foreach ($this->checkingOptions as $key => $option) {
-			if ($this->checkingOptions[$key] !== $this->defaultOptions[$key]) {
-				$this->options[$key] = $option;
-			}
-		}
 	}
 
 	/**
@@ -391,6 +370,16 @@ abstract class Relation
 			$this->command->warn('You are trying to use custome options to connect models!');
 			$this->askToUseCustomeOptions();
 		}
+	}
+
+	/**
+	 * get model tables
+	 *
+	 * @return array
+	 */
+	protected function getTables()
+	{
+		return $this->db->getTables();
 	}
 
 	/**

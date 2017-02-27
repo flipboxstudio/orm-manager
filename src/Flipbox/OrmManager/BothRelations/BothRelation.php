@@ -5,145 +5,51 @@ namespace Flipbox\OrmManager\BothRelations;
 use Illuminate\Console\Command;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
-use Flipbox\OrmManager\DatabaseConnection;
+use Flipbox\OrmManager\Relations\Relation;
 
-abstract class BothRelation
+abstract class BothRelation extends Relation
 {
     /**
-     * laravel Command
-     *
-     * @var Command
-     */
-    protected $command;
-
-    /**
-     * model manager
-     *
-     * @var ModelManager
-     */
-    protected $manager;
-
-    /**
-     * database connection
-     *
-     * @var DatabaseConnection
-     */
-    protected $database;
-
-    /**
-     * model that want to connect to
-     *
-     * @var Model
-     */
-    protected $model;
-
-    /**
-     * model that will connect with
-     *
-     * @var Model
-     */
-    protected $toModel;
-
-    /**
-     * options
+     * to models to connect
      *
      * @var array
      */
-    protected $options = [];
+    protected $toModels;
 
     /**
-     * Create a new Both instance.
+     * Create a new Model instance.
      *
      * @param Command $command
+     * @param ModelManager $manager
+     * @param Model $model
+     * @param mixed $toModel
+     * @param array $options
+     * @return void
+     */
+    public function __construct(Command $command,
+                                ModelManager $manager,
+                                Model $model,
+                                $toModel=null,
+                                array $options=[])
+    {
+        parent::__construct($command, $manager, $model, $toModel, $options);
+
+        $this->options = array_merge($this->defaultOptions, $this->options);
+    }
+
+    /**
+     * show captions process
+     *
      * @param Model $model
      * @param Model $toModel
      * @return void
      */
-    public function __construct(Command $command, ModelManager $manager, Model $model, Model $toModel)
-    {
-        $this->command = $command;
-        $this->manager = $manager;
-        $this->database = new DatabaseConnection;
-        $this->model = $model;
-        $this->toModel = $toModel;
-
-        $this->preparation();
-
-        if ($this->database->isConnected()) {
-            $this->repositionModelByKeys();
-        }
-    }
+    protected function showCaptionProcess(Model $model, Model $toModel=null) {}
 
     /**
-     * preparation oprations
+     * get stub method file
      *
-     * @return void
+     * @return string
      */
-    protected function preparation() {}
-
-    /**
-     * reposition model by relations key
-     *
-     * @return void
-     */
-    protected function repositionModelByKeys()
-    {
-        if (! $this->isPositionModelValid()) {
-            $this->exchangeModelPosition();
-            
-            if (! $this->isPositionModelValid()) {
-                $this->askWhereForeignKeyTable();
-            }
-        }
-    }
-
-    /**
-     * exchange position model
-     *
-     * @param  
-     * @return void
-     */
-    protected function exchangeModelPosition()
-    {
-        $model = $this->model;
-        $this->model = $this->toModel;
-        $this->toModel = $model;
-    }
-
-    /**
-     * check is position model is valid
-     *
-     * @return bool
-     */
-    protected function isPositionModelValid()
-    {
-        return true;
-    }
-
-    /**
-     * ask which table where foreign key filed exists
-     *
-     * @return void
-     */
-    protected function askWhereForeignKeyTable() {}
-
-    /**
-     * get model fileds
-     *
-     * @param string $table
-     * @return array
-     */
-    protected function getFields($table)
-    {
-        $fileds = $this->database->getTableFields($table);
-
-        return $fileds->pluck('name')->toArray();
-    }
-
-    /**
-     * build relations model to model
-     *
-     * @return void
-     */
-    abstract public function buildRelations();
+    protected function getStub() {}
 }

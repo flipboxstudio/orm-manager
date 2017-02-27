@@ -2,8 +2,6 @@
 
 namespace Flipbox\OrmManager\Relations;
 
-use Illuminate\Support\Str;
-
 class HasOne extends Relation
 {
 	/**
@@ -15,11 +13,9 @@ class HasOne extends Relation
 	protected function setDefaultOptions(array $options=[])
 	{
 		$this->defaultOptions = [
-			'foreign_key' => Str::singular($this->model->getTable()).'_'.$this->model->getKeyName(),
+			'foreign_key' => $this->model->getForeignKey(),
 			'primary_key' => $this->model->getKeyName()
 		];
-
-		$this->checkingOptions = array_merge($this->defaultOptions, $options);
 	}
 
 	/**
@@ -29,10 +25,10 @@ class HasOne extends Relation
 	 */
 	protected function stylingText()
 	{
-		$modelTable = $table = $this->model->getTable();
-		$toModelTable = $table = $this->toModel->getTable();
-		$foreignKey = $this->checkingOptions['foreign_key'];
-		$primaryKey = $this->checkingOptions['primary_key'];
+		$modelTable = $this->model->getTable();
+		$toModelTable = $this->toModel->getTable();
+		$foreignKey = $this->defaultOptions['foreign_key'];
+		$primaryKey = $this->defaultOptions['primary_key'];
 
 		$this->text = [
 			'table' => "[".$this->command->paintString($modelTable ,'green')."]",
@@ -53,15 +49,15 @@ class HasOne extends Relation
 	{
 		$modelTable = $table = $this->model->getTable();
 		$toModelTable = $table = $this->toModel->getTable();
-		$foreignKey = $this->checkingOptions['foreign_key'];
-		$primaryKey = $this->checkingOptions['primary_key'];
+		$foreignKey = $this->defaultOptions['foreign_key'];
+		$primaryKey = $this->defaultOptions['primary_key'];
 		
-		if (! $this->database->isFieldExists($toModelTable, $foreignKey)) {
+		if (! $this->db->isFieldExists($toModelTable, $foreignKey)) {
 			$question = "Can't find field {$this->text['foreign_key']} in the table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}, choice one!";
 			$this->options['foreign_key'] = $this->command->choice($question, $this->getFields($toModelTable));
 		}
 
-		if (! $this->database->isFieldExists($modelTable, $primaryKey)) {
+		if (! $this->db->isFieldExists($modelTable, $primaryKey)) {
 			$question = "Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}, choice one!";
 			$this->options['primary_key'] = $this->command->choice($question, $this->getFields($modelTable));
 		}
@@ -76,7 +72,7 @@ class HasOne extends Relation
 	{
 		return [
 			"There should be field {$this->text['foreign_key']} in table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}",
-			"There should be field {$this->text['primary_key']} in table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}"
+			"There should be field {$this->text['primary_key']} in table {$this->text['table']} as {$this->text['primary_text']}"
 		];
 	}
 

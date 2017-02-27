@@ -2,48 +2,96 @@
 
 namespace Flipbox\OrmManager\BothRelations;
 
-use ReflectionClass;
-
 class OneToOne extends BothRelation
 {
     /**
-     * check is position model is valid
+     * set default options
      *
-     * @return bool
+     * @param array $options
+     * @return void
      */
-    protected function isPositionModelValid()
+    protected function setDefaultOptions(array $options=[])
     {
-        $foreignTable = $this->toModel->getTable();
-        $refModel = new ReflectionClass($this->model);
-        $foreignKey = strtolower($refModel->getShortName()).'_'.$this->model->getKeyName();
-
-        return $this->database->isFieldExists($foreignTable, $foreignKey);
+        $this->defaultOptions = [
+            'foreign_key' => $this->model->getForeignKey(),
+            'primary_key' => $this->model->getKeyName()
+        ];
     }
 
     /**
-     * ask which table where foreign key filed exists
+     * styling text
      *
      * @return void
      */
-    protected function askWhereForeignKeyTable()
+    protected function stylingText()
     {
-        $foreignTable = $this->command->choice('Which table that conatain foreign key?', [
-            $this->toModel->getTable(), $this->model->getTable(),
-        ]);
+        $modelTable = $this->model->getTable();
+        $toModelTable = $this->toModel->getTable();
+        $foreignKey = $this->defaultOptions['foreign_key'];
+        $primaryKey = $this->defaultOptions['primary_key'];
 
-        $this->options['foreign_key'] = $this->command->choice('what foreign key of both relation?',
-            $this->getFields($foreignTable)
-        );
+        $this->text = [
+            'table' => "[".$this->command->paintString($modelTable ,'green')."]",
+            'to_table' => "[".$this->command->paintString($toModelTable ,'green')."]",
+            'foreign_key' => "[".$this->command->paintString($foreignKey ,'green')."]",
+            'primary_key' => "[".$this->command->paintString($primaryKey ,'green')."]",
+            'primary_text' => $this->command->paintString('primary key', 'brown'),
+            'foreign_text' => $this->command->paintString('foreign key', 'brown')
+        ];
+    }
 
-        $foreignModel = $this->manager->tableToModel($foreignTable);
+    /**
+     * get connected db relation options
+     *
+     * @return void
+     */
+    protected function setConnectedRelationOptions()
+    {
+        $modelTable = $table = $this->model->getTable();
+        $toModelTable = $table = $this->toModel->getTable();
+        $foreignKey = $this->defaultOptions['foreign_key'];
+        $primaryKey = $this->defaultOptions['primary_key'];
         
-        if ($foreignModel != $this->toModel) {
-            $this->exchangeModelPosition();
+        if (! $this->db->isFieldExists($toModelTable, $foreignKey)) {
+            $question = "Can't find field {$this->text['foreign_key']} in the table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}, choice one!";
+            $this->options['foreign_key'] = $this->command->choice($question, $this->getFields($toModelTable));
+        }
+
+        if (! $this->db->isFieldExists($modelTable, $primaryKey)) {
+            $question = "Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}, choice one!";
+            $this->options['primary_key'] = $this->command->choice($question, $this->getFields($modelTable));
         }
     }
 
     /**
-     * build relations model to model
+     * get relation options rules
+     *
+     * @return array
+     */
+    protected function getRelationOptionsRules()
+    {
+        return [
+            "There should be field {$this->text['foreign_key']} in table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}",
+            "There should be field {$this->text['primary_key']} in table {$this->text['table']} as {$this->text['primary_text']}"
+        ];
+    }
+
+    /**
+     * ask to use custome options
+     *
+     * @return void
+     */
+    protected function askToUseCustomeOptions()
+    {
+        $question = "The {$this->text['foreign_text']} of table {$this->text['table']} in the table {$this->text['to_table']}, will be?";
+        $this->options['foreign_key'] = $this->command->ask($question, $this->defaultOptions['foreign_key']);
+
+        $question = "The {$this->text['primary_text']} of the table {$this->text['table']}, will be?";
+        $this->options['primary_key'] = $this->command->ask($question, $this->defaultOptions['primary_key']);
+    }
+
+    /**
+     * build relations between models
      *
      * @return void
      */

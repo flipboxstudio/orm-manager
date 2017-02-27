@@ -14,6 +14,13 @@ use Flipbox\OrmManager\Exceptions\RelationNotAvailable;
 class ModelBothConnect extends ModelConnect
 {
     /**
+     * use multiple to model
+     *
+     * @var bool
+     */
+    protected $multipleToModel = false;
+
+    /**
      * The console command name.
      *
      * @var string
@@ -35,17 +42,21 @@ class ModelBothConnect extends ModelConnect
      */
     public function handle()
     {
+        $this->multipleToModel = in_array($this->argument('relation'), ['morphOneToOne', 'morphOneToMany', 'morphManyToMany']);
+
         try {
             if ($this->option('interactive')) {
                 extract($this->runInteractiveConnect());
             } else {
                 extract($this->getArgumentConnect());
             }
+
             $this->buildRelations($model, $relation, $toModel);        
         } catch (Exception $e) {
             return $this->error($e->getMessage());
         }
     }
+
     /**
      * get data input from arguments
      *
@@ -56,7 +67,7 @@ class ModelBothConnect extends ModelConnect
         if ($this->isRequiredArgFulfilled($this->arguments())) {
             $data['model'] = $this->getModel($this->argument('model'));
             $data['relation'] = $this->getRelation($this->argument('relation'));
-            $data['toModel'] = $this->getModel($this->argument('to-model'));
+            $data['toModel'] = $this->getModel($this->argument('to-model'), $this->multipleToModel);
     
             return $data;
         }
@@ -99,10 +110,12 @@ class ModelBothConnect extends ModelConnect
         $default = $search === false ? null : $search;
         $data['relation'] = $this->choice('Which relation between two models?', $this->manager->both_relations, $default);
 
-        $search = array_search($this->argument('model'), $models);
+        $search = array_search($this->argument('to-model'), $models);
         $default = $search === false ? null : $search;
-        $askToModel = $this->choice('Which model that you want to connect with '.$askModel, $models, $default);
-        $data['toModel'] = $this->getModel($askToModel);
+        $info = "(Use comma separated for multiple models)";
+        $multipleInfo = $this->multipleToModel ? $this->paintString($info, 'green') : '';
+        $askToModel = $this->choice('Which '.($this->multipleToModel ? 'models' : 'model').' that you want to connect with '.$askModel.' '.$multipleInfo, $models, $default, null, $this->multipleToModel);
+        $data['toModel'] = $this->getModel($askToModel, $this->multipleToModel);
 
         return $data;
     }
@@ -127,10 +140,10 @@ class ModelBothConnect extends ModelConnect
      *
      * @param Model $model
      * @param string $relation
-     * @param mix Model $toModel
+     * @param mixed $toModel
      * @return void
      */
-    protected function buildRelations(Model $model, $relation, Model $toModel)
+    protected function buildRelations(Model $model, $relation, $toModel)
     {
         try {
             $bothRelation = $this->newBothRelationInstance($relation, $model, $toModel);

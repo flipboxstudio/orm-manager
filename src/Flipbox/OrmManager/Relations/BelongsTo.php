@@ -2,8 +2,6 @@
 
 namespace Flipbox\OrmManager\Relations;
 
-use Illuminate\Support\Str;
-
 class BelongsTo extends HasOne
 {
 	/**

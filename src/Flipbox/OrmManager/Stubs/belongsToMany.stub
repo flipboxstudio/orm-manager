@@ -3,5 +3,5 @@
      */
     public function DummyMethodName()
     {
-        return $this->belongsToMany(DummyToModel::class, 'pivot_table', 'foreign_key_1', 'foreign_key_2');
+        return $this->belongsToMany(DummyToModel::class, 'pivot_table', 'foreign_key', 'related_key', 'relation');
     }
