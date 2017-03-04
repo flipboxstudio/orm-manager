@@ -32,6 +32,8 @@ abstract class BothRelation extends Relation
                                 $toModel=null,
                                 array $options=[])
     {
+        $this->options = $options;
+
         parent::__construct($command, $manager, $model, $toModel, $options);
 
         $this->options = array_merge($this->defaultOptions, $this->options);

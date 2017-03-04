@@ -75,9 +75,13 @@ class MorphOneToOne extends BothRelation
     {
         $this->text['relation_name_text'] = $this->command->paintString('relation name', 'brown');
 
-        $refModel = new ReflectionClass($this->model);
-        $name = $this->getRelationName(strtolower($refModel->getShortName()));
-        $name = $this->command->ask("What {$this->text['relation_name_text']} do you use?", $name);
+        if (! isset($options['name'])) {
+            $refModel = new ReflectionClass($this->model);
+            $name = $this->getRelationName(strtolower($refModel->getShortName()));
+            $name = $this->command->ask("What {$this->text['relation_name_text']} do you use?", $name);
+        } else {
+            $name = $options['name'];
+        }
 
         $this->defaultOptions = [
             'name' => $name,

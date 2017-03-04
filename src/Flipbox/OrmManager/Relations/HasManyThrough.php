@@ -15,17 +15,20 @@ class HasManyThrough extends Relation
 	 */
 	protected function setDefaultOptions(array $options=[])
 	{
-		$this->text['intermediate_text'] = "[".$this->command->paintString('intermediate model' ,'brown')."]";
-
-		$intermediateModel = $this->manager->makeClass(
-								$this->command->choice("Choice {$this->text['intermediate_text']} of both relation!",
-								$this->manager->getModels()->pluck('name')->toArray())
-							 );
+		if (isset($options['intermediate_model'])) {
+			$intermediateModel = $options['intermediate_model'];
+		} else {
+			$this->text['intermediate_text'] = "[".$this->command->paintString('intermediate model' ,'brown')."]";
+			$intermediateModel = $this->manager->getModel(
+									$this->command->choice("Choice {$this->text['intermediate_text']} of both relation!",
+									$this->manager->getModels()->keys()->toArray())
+								 );
+		}
 
 		$this->defaultOptions = [
 			'intermediate_model' => $intermediateModel,
-			'foreign_key_1' => Str::singular($this->model->getTable()).'_'.$this->model->getKeyName(),
-			'foreign_key_2' => Str::singular($intermediateModel->getTable()).'_'.$intermediateModel->getKeyName(),
+			'first_key' => $this->model->getForeignKey(),
+			'second_key' => $intermediateModel->getForeignKey(),
 			'primary_key' => $this->model->getKeyName()
 		];
 	}
@@ -37,8 +40,8 @@ class HasManyThrough extends Relation
 	 */
 	protected function stylingText()
 	{
-		$this->text['foreign_key_1'] = "[".$this->command->paintString($this->defaultOptions['foreign_key_1'] ,'green')."]";
-		$this->text['foreign_key_2'] = "[".$this->command->paintString($this->defaultOptions['foreign_key_2'] ,'green')."]";
+		$this->text['first_key'] = "[".$this->command->paintString($this->defaultOptions['first_key'] ,'green')."]";
+		$this->text['second_key'] = "[".$this->command->paintString($this->defaultOptions['second_key'] ,'green')."]";
 		$this->text['primary_key'] = "[".$this->command->paintString($this->defaultOptions['primary_key'] ,'green')."]";
 		$this->text['model_table'] = "[".$this->command->paintString($this->model->getTable() ,'green')."]";
 		$this->text['to_model_table'] = "[".$this->command->paintString($this->toModel->getTable() ,'green')."]";
@@ -60,16 +63,16 @@ class HasManyThrough extends Relation
 			throw new TableNotExists($intermediateModel->getTable(), get_class($intermediateModel));
 		}
 
-		if (! $this->db->isFieldExists($table = $intermediateModel->getTable(), $this->defaultOptions['foreign_key_1'])) {
-			$this->options['foreign_key_1'] = $this->command->choice(
-				"Can't find field {$this->text['foreign_key_1']} in the table {$this->text['intermediate_model_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}, choice one!",
+		if (! $this->db->isFieldExists($table = $intermediateModel->getTable(), $this->defaultOptions['first_key'])) {
+			$this->options['first_key'] = $this->command->choice(
+				"Can't find field {$this->text['first_key']} in the table {$this->text['intermediate_model_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}, choice one!",
 				$this->getFields($table)
 			);
 		}
 
-		if (! $this->db->isFieldExists($table = $this->toModel->getTable(), $this->defaultOptions['foreign_key_2'])) {
-			$this->options['foreign_key_2'] = $this->command->choice(
-				"Can't find field {$this->text['foreign_key_2']} in the table {$this->text['to_model_table']} as {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']}, choice one!",
+		if (! $this->db->isFieldExists($table = $this->toModel->getTable(), $this->defaultOptions['second_key'])) {
+			$this->options['second_key'] = $this->command->choice(
+				"Can't find field {$this->text['second_key']} in the table {$this->text['to_model_table']} as {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']}, choice one!",
 				$this->getFields($table)
 			);
 		}
@@ -92,8 +95,8 @@ class HasManyThrough extends Relation
 		$intermediateModel = $this->defaultOptions['intermediate_model'];
 
 		return [
-			"There should be field {$this->text['foreign_key_1']} in table {$this->text['intermediate_model_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}",
-			"There should be field {$this->text['foreign_key_2']} in table {$this->text['to_model_table']} as {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']}",
+			"There should be field {$this->text['first_key']} in table {$this->text['intermediate_model_table']} as {$this->text['foreign_text']} of table {$this->text['model_table']}",
+			"There should be field {$this->text['second_key']} in table {$this->text['to_model_table']} as {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']}",
 			"There should be field {$this->text['primary_key']} in table {$this->text['model_table']} as {$this->text['primary_text']} of table {$this->text['model_table']}"
 		];
 	}
@@ -118,14 +121,14 @@ class HasManyThrough extends Relation
 	{
 		$intermediateModel = $this->defaultOptions['intermediate_model'];
 
-		$this->options['foreign_key_1'] = $this->command->ask(
+		$this->options['first_key'] = $this->command->ask(
 									"The {$this->text['foreign_text']} of table {$this->text['model_table']} in the table {$this->text['intermediate_model_table']} will be?",
-									$this->defaultOptions['foreign_key_1']
+									$this->defaultOptions['first_key']
 								);
 		
-		$this->options['foreign_key_2'] = $this->command->ask(
+		$this->options['second_key'] = $this->command->ask(
 									"The {$this->text['foreign_text']} of table {$this->text['intermediate_model_table']} in the table {$this->text['model_table']} will be?",
-									$this->defaultOptions['foreign_key_2']
+									$this->defaultOptions['second_key']
 								);
 
 		$this->options['primary_key'] = $this->command->ask(

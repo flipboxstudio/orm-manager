@@ -4,6 +4,8 @@ namespace Flipbox\OrmManager;
 
 use DB;
 use Exception;
+use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Schema\Column;
 use Illuminate\Support\Collection;
 
 class DatabaseConnection
@@ -23,6 +25,13 @@ class DatabaseConnection
 	protected $doctrine;
 
 	/**
+	 * tables
+	 *
+	 * @var array
+	 */
+	protected $tables;
+
+	/**
 	 * Create a new DatabaseConnection instance.
 	 *
 	 * @return void
@@ -30,6 +39,7 @@ class DatabaseConnection
 	public function __construct()
 	{
 		$this->initDoctrine();
+		$this->scanDatabase();
 	}
 	
 	/**
@@ -51,9 +61,94 @@ class DatabaseConnection
 	}
 
 	/**
+	 * scan database
+	 *
+	 * @return void
+	 */
+	protected function scanDatabase()
+	{
+		if ($this->isConnected()) {
+			$tables = $this->doctrine->listTableNames();
+
+			foreach ($tables as $table) {
+				$schTable = $this->doctrine->listTableDetails($table);
+
+				$this->tables[$table] = $this->getTableFields($schTable);
+			}
+		}
+	}
+
+	/**
+	 * get database fileds
+	 *
+	 * @param Table $table
+	 * @return array
+	 */
+	protected function getTableFields(Table $table)
+	{
+		$fileds = [];
+
+		foreach ($table->getColumns() as $column) {
+			$fileds[] = [
+	            'name' => $column->getName(),
+	            'type' => $column->getType()->getName(),
+	            'not_null' => $column->getNotnull(),
+	            'length' => $column->getLength(),
+	            'unsigned' => $column->getUnsigned(),
+	            'autoincrement' => $column->getAutoincrement(),
+	            'primary_key' => $this->isPrimaryKey($table, $column),
+	            'foreign_key' => $this->isForeignKey($table, $column)
+			];
+		}
+
+		return $fileds;
+	}
+
+	/**
+	 * check is column primary key
+	 *
+	 * @param Table $table
+	 * @param Column $column
+	 * @return bool
+	 */
+	protected function isPrimaryKey(Table $table, Column $column)
+	{
+		$primaryColumns = $table->getPrimaryKey()->getColumns();
+
+		return $table->hasPrimaryKey()
+				? in_array($column->getName(), $primaryColumns)
+				: flase;
+	}
+
+	/**
+	 * check is column foreign key
+	 *
+	 * @param Table $table
+	 * @param Column $column
+	 * @return bool
+	 */
+	protected function isForeignKey(Table $table, Column $column)
+	{
+		$foreignKey = false;
+
+		foreach ($table->getIndexes() as $key => $index) {
+			if ($key !== 'primary') {
+				try {
+					$fkConstrain = $table->getForeignkey($key);
+					$foreignKey = in_array($column->getName(), $fkConstrain->getColumns());
+				} catch (Exception $e) {
+					//do noting
+				}
+			}
+		}
+
+		return $foreignKey;
+	}
+
+	/**
 	 * check database connection
 	 *
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isConnected()
 	{
@@ -61,86 +156,37 @@ class DatabaseConnection
 	}
 
 	/**
-	 * get database tables
+	 * get tables
 	 *
 	 * @return array
 	 */
 	public function getTables()
 	{
-		if (! $this->isConnected()) {
-			return [];
-		}
-
-		try {
-			return $this->doctrine->listTableNames();
-		} catch (Exception $e) {
-			return [];
-		}
+		return new Collection($this->tables);
 	}
 
 	/**
-	 * get database table field
+	 * get table fields
 	 *
 	 * @param string $table
 	 * @return array
 	 */
-	public function getTableFields($table)
+	public function getFields($table)
 	{
-		if (! $this->isConnected()) {
-			return [];
+		if (isset($this->tables[$table])) {
+			return new Collection($this->tables[$table]);
 		}
-
-		$fileds = [];
-		
-		try {
-			$table = $this->doctrine->listTableDetails($table);
-
-			foreach ($table->getColumns() as $column) {
-				$primaryKey =  $table->hasPrimaryKey()
-            					? in_array($column->getName(), $table->getPrimaryKey()->getColumns())
-            					: flase;
-
-				$foreignKey = false;
-				foreach ($table->getIndexes() as $key => $index) {
-					if ($key !== 'primary') {
-						try {
-							$fkConstrain = $table->getForeignkey($key);
-							$foreignKey = in_array($column->getName(), $fkConstrain->getColumns());
-						} catch (Exception $e) {
-							//do noting
-						}
-					}
-				}
-
-				$fileds[] = [
-		            'name' => $column->getName(),
-		            'type' => $column->getType()->getName(),
-		            'not_null' => $column->getNotnull(),
-		            'length' => $column->getLength(),
-		            'unsigned' => $column->getUnsigned(),
-		            'autoincrement' => $column->getAutoincrement(),
-		            'primary_key' => $primaryKey,
-		            'foreign_key' => $foreignKey
-				];
-			}
-		} catch (Exception $e) {
-			$fileds = [];
-		}
-		
-		return new Collection($fileds);
 	}
 
 	/**
 	 * check is model table exists
 	 *
 	 * @param string $table
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isTableExists($table)
 	{
-		$tables = $this->getTables();
-
-		return in_array($table, $tables);
+		return isset($this->tables[$table]);
 	}
 
 	/**
@@ -148,12 +194,16 @@ class DatabaseConnection
 	 *
 	 * @param string $table
 	 * @param string $field
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isFieldExists($table, $field)
 	{
-		$fields = $this->getTableFields($table)->pluck('name')->toArray();
+		if (isset($this->tables[$table])) {
+			$fields = $this->getFields($table);
 
-		return in_array($field, $fields);
+			return $fields->where('name', $field)->count() > 0;
+		}
+
+		return false;
 	}
 }

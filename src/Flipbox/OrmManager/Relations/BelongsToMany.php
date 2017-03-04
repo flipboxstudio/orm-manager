@@ -15,12 +15,12 @@ class BelongsToMany extends Relation
 	protected function setDefaultOptions(array $options=[])
 	{
 		$tables = [
-			'model' => $this->model->getTable(),
-			'toModel' => $this->toModel->getTable()
+			'model' => $this->manager->getClassName($this->model),
+			'toModel' => $this->manager->getClassName($this->toModel)
 		];
 
 		asort($tables, SORT_REGULAR);
-		$pivotTable = implode('_', array_map([Str::class, 'singular'], $tables));
+		$pivotTable = implode('_', array_map('strtolower', $tables));
 		
 		$this->defaultOptions = [
 			'pivot_table' => $pivotTable,

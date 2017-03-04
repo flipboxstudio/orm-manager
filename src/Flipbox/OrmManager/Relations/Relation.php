@@ -127,18 +127,13 @@ abstract class Relation
 	 */
 	protected function showCaptionProcess(Model $model, Model $toModel=null)
 	{
-		$toModelName = '';
-		$refModel = new ReflectionClass($model);
-		$relationModel = new ReflectionClass($this);
+		$modelName = $this->manager->getClassName($model);
+		$toModelName = $this->manager->getClassName($toModel);
+		$relationName = $this->manager->getClassName($this);
 
-		if (! is_null($toModel)) {
-			$refToModel = new ReflectionClass($toModel);
-			$toModelName = $refToModel ? $refToModel->getShortName() : '';
-		}
+		$caption = "Creating relation {$modelName} {$relationName} {$toModelName} :";
 
-		$caption = " >>> Creating relation {$refModel->getShortName()} {$relationModel->getShortName()} {$toModelName} : ";
-
-		$this->command->title($caption, 'white', 'blue');
+		$this->command->title($caption);
 	}
 
 	/**
@@ -149,20 +144,33 @@ abstract class Relation
 	 */
 	protected function setRelationOptions(array $options = [])
 	{
-		if (! $this->db->isTableExists($this->model->getTable())) {
-			throw new TableNotExists($this->model->getTable(), $refModel->getShortName());
-		}
-
-		if (! is_null($this->toModel) AND ! $this->db->isTableExists($this->toModel->getTable())) {
-			throw new TableNotExists($this->toModel->getTable(), $refToModel->getShortName());
-		}
-
 		if (count($options) > 0) {
 			$this->options = $options;
 		} elseif ($this->db->isConnected()) {
+			$this->checkModelDatabases();
 			$this->setConnectedRelationOptions();
 		} else {
 			$this->setNotConnectedRelationOptions();
+		}
+	}
+
+	/**
+	 * check model databases
+	 *
+	 * @param  
+	 * @return void
+	 */
+	protected function checkModelDatabases()
+	{
+		$modelName = $this->manager->getClassName($this->model);
+		$toModelName = $this->manager->getClassName($this->toModel);
+
+		if (! $this->db->isTableExists($this->model->getTable())) {
+			throw new TableNotExists($this->model->getTable(), $modelName);
+		}
+
+		if (! is_null($this->toModel) AND ! $this->db->isTableExists($this->toModel->getTable())) {
+			throw new TableNotExists($this->toModel->getTable(), $toModelName);
 		}
 	}
 
@@ -192,13 +200,12 @@ abstract class Relation
 	public function buildMethod()
 	{
 		$methodName = $this->generateMethodName();
-		$stubFile = $this->getStub();
-		$stub = file_get_contents($stubFile);
-
-		$refModel = new ReflectionClass($this->reverse ? $this->toModel : $this->model);
+		$stub = file_get_contents($this->getStub());
+		$model = $this->reverse ? $this->toModel : $this->model;
+		$modelName = $this->manager->getClassName($model);
 
 		$stub = str_replace('DummyMethodName', $methodName, $stub);
-		$stub = str_replace('DummyModel', strtolower($refModel->getShortName()), $stub);
+		$stub = str_replace('DummyModel', strtolower($modelName), $stub);
 		
 		if (! is_null($this->toModel)) {
 			$stub = str_replace('DummyToModel', $this->getRelationClassName(
@@ -247,16 +254,17 @@ abstract class Relation
 	 */
 	protected function generateMethodName()
 	{
-		$refToModel = new ReflectionClass($this->reverse ? $this->model : $this->toModel);
-		$name = $refToModel->getShortName();
+		$model = $this->reverse ? $this->toModel : $this->model;
+		$toModel = $this->reverse ? $this->model : $this->toModel;
 
-		$methodName = Str::camel($this->getMethodName($name));
+		$className = $this->manager->getClassName($toModel);
+		$methodName = Str::camel($this->getMethodName($className));
 
-		if ($this->manager->isMethodExists($this->reverse ? $this->toModel : $this->model, $methodName)) {
-			throw new MethodAlreadyExists($methodName);
+		if (! $this->manager->isMethodExists($model, $methodName)) {
+			return $methodName;
 		}
 
-		return $methodName;
+		throw new MethodAlreadyExists($methodName);
 	}
 
 	/**
@@ -282,8 +290,8 @@ abstract class Relation
 
 		foreach (array_reverse($this->defaultOptions) as $key => $option) {
 			if (! $replaced) {
+				$replace = '';
 				$replaceWithComma = '';
-				$replaceWithSingle = '';
 			}
 
 			if (in_array($key, $this->requiredOptions)) {
@@ -293,22 +301,22 @@ abstract class Relation
 					$value = $this->options[$key];
 				}
 
+				$replace = "'$value'";
 				$replaceWithComma = ", '$value'";
-				$replaceWithSingle = "'$value'";
 			} elseif (array_key_exists($key, $this->options)
 				AND $this->options[$key] !== $this->defaultOptions[$key]) {
 
-				$replaceWithComma = ", '{$this->options[$key]}'";
-				$replaceWithSingle = "'{$this->options[$key]}'";
 				$replaced = true;
+				$replace = "'{$this->options[$key]}'";
+				$replaceWithComma = ", '{$this->options[$key]}'";
 
 			} elseif ($replaced) {
+				$replace = "null";
 				$replaceWithComma = ", null";
-				$replaceWithSingle = "null";
 			}
 
 			$stub = str_replace(", '{$key}'", $replaceWithComma, $stub);
-			$stub = str_replace("'{$key}'", $replaceWithSingle, $stub);
+			$stub = str_replace("'{$key}'", $replace, $stub);
 		}
 
 		return $stub;
@@ -390,7 +398,7 @@ abstract class Relation
 	 */
 	protected function getFields($table)
 	{
-		$fileds = $this->db->getTableFields($table);
+		$fileds = $this->db->getFields($table);
 
 		return $fileds->pluck('name')->toArray();
 	}

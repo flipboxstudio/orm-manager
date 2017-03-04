@@ -27,7 +27,7 @@ class ModelList extends Command
 	 *
 	 * @var ModelManager
 	 */
-	protected $model;
+	protected $manager;
 
     /**
      * The console command name.
@@ -64,7 +64,7 @@ class ModelList extends Command
 	public function handle()
 	{
 		try {
-			$models = $this->manager->getModels(true);
+			$models = $this->manager->toArray();
 		} catch (Exception $e) {
 			return $this->error($e->getMessage());
 		}
@@ -76,14 +76,15 @@ class ModelList extends Command
 		if (count($models) > 0) {
 			$header = ['Namespace', 'Model', 'Table', 'PrimaryKey', 'Relations', 'Mutators', 'Accessor', 'Scope', 'Soft Deletes'];
 
-			return $this->table($header, $models->map(function($model){
+			return $this->table($header, array_map(function($model){
                 $table = $model['table'];
-                $model['name'] = $this->paintString($model['name'], 'white');
+                $model['namespace'] = $this->paintString($model['namespace'], 'brown');
+                $model['name'] = $this->paintString($model['name'], 'green');
                 $model['table'] = $this->paintTable($table);
                 $model['primary_key'] = $this->paintPrimaryKey($table, $model['primary_key']);
                 $model['soft_deletes'] = $this->paintSoftDeletes($model['soft_deletes']);
                 return $model;
-            }));
+            }, $models));
 		}
 
 		$this->error('No models found');
@@ -99,7 +100,7 @@ class ModelList extends Command
     {
         if ($this->db->isConnected()) {
             if ($this->db->isTableExists($table)) {
-                return $this->paintString($table, 'green');
+                return $this->paintString($table, 'brown');
             }
 
             return $this->paintString($table, 'white', 'red');
@@ -120,7 +121,7 @@ class ModelList extends Command
             if ($this->db->isTableExists($table)
                 AND $this->db->isFieldExists($table, $primaryKey)) {
 
-                return $this->paintString($primaryKey, 'green');
+                return $this->paintString($primaryKey, 'brown');
             }
 
             return $this->paintString($primaryKey, 'white', 'red');

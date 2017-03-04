@@ -67,7 +67,7 @@ trait Command
     {
         $string = $this->paintString("{$string}", 'green');
 
-        print("{$string}\n");
+        $this->print($string);
     }
 
     /**
@@ -76,11 +76,11 @@ trait Command
      * @param  string  $string
      * @return void
      */
-    public function title($string)
+    public function title($string, $backgorund='blue', $forgeground='white')
     {
-        $string = $this->paintString(" {$string} ", 'white', 'blue');
+        $string = $this->paintString(" {$string} ", $forgeground, $backgorund);
 
-        print("{$string}\n");
+        $this->print($string);
     }
 
     /**
@@ -91,9 +91,9 @@ trait Command
      */
     public function danger($string)
     {
-        $string = $this->paintString(" Error : {$string} ", 'white', 'red', 'italic');
+        $string = $this->paintString("{$string}", 'red');
 
-        print("{$string}\n");
+        $this->print($string);
     }
     
     /**
@@ -107,6 +107,18 @@ trait Command
     {
         $string = $this->paintString(" Warning : {$string} ", 'white', 'yellow', 'italic');
 
+        $this->print($string);
+    }
+
+    /**
+     * Write a string as warning output.
+     *
+     * @param  string  $string
+     * @param  null|int|string  $verbosity
+     * @return void
+     */
+    public function print($string)
+    {
         print($string)."\r\n";
     }
 

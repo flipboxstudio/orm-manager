@@ -39,6 +39,7 @@ class OrmManagerServiceProvider extends ServiceProvider
     		Consoles\ModelDetail::class,
             Consoles\ModelConnect::class,
             Consoles\ModelBothConnect::class,
+            Consoles\ModelAutoConnect::class,
     	]);
     }
 }

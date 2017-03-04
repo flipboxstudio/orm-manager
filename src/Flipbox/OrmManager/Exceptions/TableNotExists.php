@@ -15,6 +15,6 @@ class TableNotExists extends Exception
      */
     public function __construct($name, $model)
     {
-        parent::__construct("The table {$name} of model {$model} is not exists");
+        parent::__construct("Table {$name} of model {$model} is not exists");
     }
 }

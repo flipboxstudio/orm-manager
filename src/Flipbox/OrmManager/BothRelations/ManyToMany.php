@@ -126,9 +126,12 @@ class ManyToMany extends BothRelation
     {
         $this->command->buildMethod($this->model, 'belongsToMany', $this->toModel, $this->options);
 
-        $this->options['foreign_key'] = $this->options['related_key'];
-        $this->options['related_key'] = $this->options['foreign_key'];
+        $foreignKey = $this->options['foreign_key'];
+        $relatedKey = $this->options['related_key'];
+        $this->options['foreign_key'] = $relatedKey;
+        $this->options['related_key'] = $foreignKey;
         $this->options['relation'] = $this->model->getTable();
+
         $this->command->buildMethod($this->toModel, 'belongsToMany', $this->model, $this->options);
     }
 }

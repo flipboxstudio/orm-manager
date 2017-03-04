@@ -3,5 +3,5 @@
      */
     public function DummyMethodName()
     {
-        return $this->hasManyThrough(DummyToModel::class, DummyIntermediateModel::class, 'foreign_key_1', 'foreign_key_2', 'primary_key');
+        return $this->hasManyThrough(DummyToModel::class, DummyIntermediateModel::class, 'first_key', 'second_key', 'primary_key');
     }

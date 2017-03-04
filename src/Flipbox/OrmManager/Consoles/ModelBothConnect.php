@@ -99,7 +99,7 @@ class ModelBothConnect extends ModelConnect
      */
     protected function runInteractiveConnect()
     {
-        $models = $this->manager->getModels()->pluck('name')->toArray();
+        $models = $this->manager->getModels()->keys()->toArray();
 
         $search = array_search($this->argument('model'), $models);
         $default = $search === false ? null : $search;
@@ -141,12 +141,13 @@ class ModelBothConnect extends ModelConnect
      * @param Model $model
      * @param string $relation
      * @param mixed $toModel
+     * @param array $options
      * @return void
      */
-    protected function buildRelations(Model $model, $relation, $toModel)
+    protected function buildRelations(Model $model, $relation, $toModel, array $options=[])
     {
         try {
-            $bothRelation = $this->newBothRelationInstance($relation, $model, $toModel);
+            $bothRelation = $this->newBothRelationInstance($relation, $model, $toModel, $options);
 
             $bothRelation->buildRelations();
         } catch (Exception $e) {
@@ -160,12 +161,13 @@ class ModelBothConnect extends ModelConnect
      * @param string $relation
      * @param Model $model
      * @param mix Model|null $toModel
+     * @param array $options
      * @return Model
      */
-    protected function newBothRelationInstance($relation, Model $model, $toModel)
+    protected function newBothRelationInstance($relation, Model $model, $toModel, array $options=[])
     {
         $class = 'Flipbox\OrmManager\BothRelations\\'.Str::studly($relation);
 
-        return new $class($this, $this->manager, $model, $toModel);
+        return new $class($this, $this->manager, $model, $toModel, $options);
     }
 }

@@ -7,11 +7,12 @@ use ReflectionClass;
 use ReflectionMethod;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Contracts\Support\Arrayable;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
-class ModelManager
+class ModelManager implements Arrayable
 {
     /**
      * base path
@@ -74,50 +75,33 @@ class ModelManager
         $this->db = $db;
         $this->config = $config;
         $this->path = $this->config['basepath'];
-        $this->models = $this->scandModels();
-    }
-
-    /**
-     * get model list
-     *
-     * @return Collection
-     */
-    public function getModels()
-    {
-        return new Collection($this->models);
+        
+        $this->scandModels();
     }
 
     /**
      * scand models from path
      *
      * @param  string $path
-     * @return array
+     * @return void
      */
     protected function scandModels($path=null)
     {
         try {
             $dirs = scandir($path = $path ?: $this->path);
         } catch (Exception $e) {
-            return [];
+            //
         }
-
-        $models = [];
 
         foreach($this->filterDirectory($dirs) as $file) {
             if (is_dir($filepath = $path.'/'.$file)) {
-                $models = array_merge($models, $this->scandModels($filepath));
+                $this->scandModels($filepath);
             }
 
-            if (! $this->isValidFileModel($filepath)) {
-                continue;
-            }
-
-            if ($this->isValidModel($class = $this->makeClassFromFile($filepath))) {
-                $models[] = $this->petchModel($class);
+            if ($model = $this->makeModelFromFile($filepath)) {
+                $this->models[$this->getClassName($model)] = $model;
             }
         }
-
-        return $models;
     }
 
     /**
@@ -140,104 +124,30 @@ class ModelManager
     }
 
     /**
-     * patch model
-     *
-     * @param Model $class
-     * @return array
-     */
-    protected function petchModel(Model $class)
-    {
-        $refClass = new ReflectionClass($class);
-
-        return [
-            'namespace' => $refClass->getNamespaceName(),
-            'name' => $refClass->getShortName(),
-            'table' => $class->getTable(),
-            'primary_key' => $class->getKeyName(),
-            'relation_count' => $this->getRelations($class)->count(),
-            'mutator_count' => $this->getMutators($class)->count(),
-            'accessor_count' => $this->getAccessors($class)->count(),
-            'scope_count' => $this->getScopes($class)->count(),
-            'soft_deletes' => $this->isUseSoftDeletes($class)
-        ];
-    }
-
-    /**
-     * check path is file of model
+     * make model form filepath
      *
      * @param string $filepath
-     * @return boolean
-     */
-    public function isValidFileModel($filepath)
-    {
-        if (file_exists($filepath) AND is_file($filepath)) {
-            extract(pathinfo($filepath));
-
-            return ! empty($filename)
-                AND in_array($filename, (new FileGetContent($filepath))->getClasses());
-
-        }
-
-        return false;
-    }
-
-    /**
-     * check is file model
-     *
-     * @param object $model
-     * @return boolean
-     */
-    public function isValidModel($model)
-    {
-        if (! is_object($model)) {
-            return false;
-        }
-
-        $refModel = new ReflectionClass($model);
-
-        if ($refModel->isAbstract()) {
-            return false;
-        }
-
-        return is_subclass_of($model, Model::class);
-    }
-
-    /**
-     * table to model
-     *
-     * @param string $table
      * @return Model
      */
-    public function tableToModel($table)
+    protected function makeModelFromFile($filepath)
     {
-        if ($model = $this->getModels()->where('table', $table)->first()) {
-            return $this->makeClass($model['name']);
+        if (! file_exists($filepath) OR ! is_file($filepath)) {
+            return null;
+        }
+        
+        extract(pathinfo($filepath));
+
+        $fileClasses = (new FileGetContent($filepath))->getClasses();
+
+        if (empty($filename) OR ! in_array($filename, $fileClasses)) {
+            return null;
         }
 
-        throw new ModelNotFound($table);
-    }
+        $class = $this->newInstanceClassFromFile($filepath);
 
-    /**
-     * check is model exists
-     *
-     * @param string $className
-     * @return boolean
-     */
-    public function isModelExists($className)
-    {
-        return $this->getModels()->where('name', $className)->count() > 0;
-    }
-
-    /**
-     * check is method exists
-     *
-     * @param Model $class
-     * @param string $method
-     * @return boolean
-     */
-    public function isMethodExists(Model $class, $method)
-    {
-        return method_exists($class, $method);
+        if (! is_null($class) AND is_subclass_of($class, Model::class)) {
+            return $class;
+        }
     }
 
     /**
@@ -246,52 +156,87 @@ class ModelManager
      * @param string $filepath
      * @return Object
      */
-    protected function makeClassFromFile($filepath)
+    protected function newInstanceClassFromFile($filepath)
     {
         if (file_exists($filepath)) {
 
             extract(pathinfo($filepath));
 
             $namespace = (new FileGetContent($filepath))->getNamespace();
-
             $refClass = new ReflectionClass($namespace.'\\'.$filename);
 
+            if ($refClass->isAbstract()
+                OR $refClass->isInterface()) {
+                return null;
+            }
+
             return $refClass->newInstanceWithoutConstructor();
         }
 
         throw new ModelNotFound($filename);
     }
-
+    
     /**
-     * instantiate class model by name
+     * get class name
      *
-     * @param string $className
-     * @return Object
+     * @param Object $class
+     * @return string
      */
-    public function makeClass($className)
+    public function getClassName($class)
     {
-        if ($this->isModelExists($className)) {
-            $model = $this->getModels()->where('name', $className)->first();
-            $class = $model['namespace'].'\\'.$className;
+        if (is_object($class)) {
             $refClass = new ReflectionClass($class);
-
-            return $refClass->newInstanceWithoutConstructor();
+            return $refClass->getShortName();
         }
 
-        throw new ModelNotFound($filename);
+        return '';
     }
 
     /**
-     * check is relations available
+     * get model list
      *
-     * @param string $relation
-     * @return boolean
+     * @return Collection
      */
-    public function isRelationAvailable($relation, $both=false)
+    public function getModels()
     {
-        return $both
-                ? in_array($relation, $this->both_relations)
-                : in_array($relation, $this->relations);
+        return new Collection($this->models);
+    }
+    
+    /**
+     * get model by names
+     *
+     * @param string $name
+     * @return Model
+     */
+    public function getModel($name)
+    {
+        if (isset($this->models[$name])) {
+            return $this->models[$name];
+        }
+    }
+
+    /**
+     * get model summary
+     *
+     * @param string $name
+     * @return array
+     */
+    public function getModelSummary($name)
+    {
+        $model = $this->getModel($name);
+
+        return $this->petchModel($model);
+    }
+
+    /**
+     * check is model exists
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function isModelExists($name)
+    {
+        return isset($this->models[$name]);
     }
 
     /**
@@ -312,6 +257,31 @@ class ModelManager
         }
 
         return $methods;
+    }
+
+    /**
+     * check is model has method
+     *
+     * @param Model $class
+     * @param string $method
+     * @return bool
+     */
+    public function isMethodExists(Model $class, $method)
+    {
+        return method_exists($class, $method);
+    }
+
+    /**
+     * check is relations available
+     *
+     * @param string $relation
+     * @return bool
+     */
+    public function isRelationAvailable($relation, $both=false)
+    {
+        return $both
+                ? in_array($relation, $this->both_relations)
+                : in_array($relation, $this->relations);
     }
 
     /**
@@ -431,5 +401,61 @@ class ModelManager
     public function isUseSoftDeletes(Model $model)
     {
         return property_exists($model, 'forceDeleting');
+    }
+
+    /**
+     * table to model
+     *
+     * @param string $table
+     * @return Model
+     */
+    public function tableToModel($table)
+    {
+        foreach ($this->models as $model) {
+            if ($model->getTable() === $table) {
+                return $model;
+            }
+        }
+
+        throw new ModelNotFound($table);
+    }
+
+    /**
+     * Get the instance as an array.
+     *
+     * @return array
+     */
+    public function toArray()
+    {
+        $data = [];
+
+        foreach ($this->models as $name => $model) {
+            $data[] = $this->petchModel($model);
+        }
+
+        return $data;
+    }
+
+    /**
+     * patch model
+     *
+     * @param Model $class
+     * @return array
+     */
+    protected function petchModel(Model $class)
+    {
+        $refClass = new ReflectionClass($class);
+
+        return [
+            'namespace' => $refClass->getNamespaceName(),
+            'name' => $refClass->getShortName(),
+            'table' => $class->getTable(),
+            'primary_key' => $class->getKeyName(),
+            'relation_count' => $this->getRelations($class)->count(),
+            'mutator_count' => $this->getMutators($class)->count(),
+            'accessor_count' => $this->getAccessors($class)->count(),
+            'scope_count' => $this->getScopes($class)->count(),
+            'soft_deletes' => $this->isUseSoftDeletes($class)
+        ];
     }
 }

@@ -61,14 +61,14 @@ class MorphTo extends Relation
 	 */
 	protected function stylingText()
 	{
-		$this->text = [
+		$this->text = array_merge($this->text, [
 			'table' => "[".$this->command->paintString($this->model->getTable(), 'green')."]",
 			'name' => "[".$this->command->paintString($this->defaultOptions['name'], 'green')."]",
 			'type' => "[".$this->command->paintString($this->defaultOptions['type'], 'green')."]",
 			'id' => "[".$this->command->paintString($this->defaultOptions['id'], 'green')."]",
 			'related_type_text' => $this->command->paintString('related type', 'brown'),
 			'related_id_text' => $this->command->paintString('related id', 'brown')
-		];
+		]);
 	}
 
 	/**
@@ -123,26 +123,6 @@ class MorphTo extends Relation
 			'type' => $this->command->ask("The {$this->text['related_type_text']} of relation is will be?", $this->getTypeName($this->options['name'])),
 			'id' => $this->command->ask("The {$this->text['related_id_text']} of relation is will be?", $this->getIdName($this->options['name'])),
 		];
-	}
-
-	/**
-	 * generate method relation name
-	 *
-	 * @param string $relation
-	 * @return string
-	 */
-	protected function generateMethodName()
-	{
-		$refModel = new ReflectionClass($this->model);
-		$name = $refModel->getShortName();
-
-		$methodName = Str::camel($this->getMethodName($name));
-
-		if ($this->manager->isMethodExists($this->model, $methodName)) {
-			throw new MethodAlreadyExists($methodName);
-		}
-
-		return $methodName;
 	}
 
 	/**

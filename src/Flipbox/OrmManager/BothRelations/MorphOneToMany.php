@@ -11,7 +11,7 @@ class MorphOneToMany extends MorphOneToOne
      */
     public function buildRelations()
     {
-        $this->command->buildMethod($this->model, 'morphTo', $this->toModel, $this->options);
+        $this->command->buildMethod($this->model, 'morphTo', null, $this->options);
 
         foreach ($this->toModels as $key => $toModel) {
             $options = $this->options;

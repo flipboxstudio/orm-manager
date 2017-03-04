@@ -3,7 +3,6 @@
 namespace Flipbox\OrmManager\Consoles;
 
 use Exception;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
 use Illuminate\Config\Repository;
@@ -11,13 +10,14 @@ use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\DatabaseConnection;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;
+use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
 use Flipbox\OrmManager\Exceptions\RelationNotAvailable;
 use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelConnect extends Command
 {
 	use LocalComand, FontColor {
-        FontColor::paintstring insteadof LocalComand;
+        FontColor::paintString insteadof LocalComand;
     }
 
 	/**
@@ -76,7 +76,7 @@ class ModelConnect extends Command
 				extract($this->getArgumentConnect());
 			}
 
-			$this->buildMethod($model, $relation, $toModel);		
+			$this->buildMethod($model, $relation, $toModel);
 		} catch (Exception $e) {
 			return $this->error($e->getMessage());
 		}
@@ -134,8 +134,8 @@ class ModelConnect extends Command
 	 */
 	protected function runInteractiveConnect()
 	{
-        $models = $this->manager->getModels()->pluck('name')->toArray();
-		
+        $models = $this->manager->getModels()->keys()->toArray();
+
 		$search = array_search($this->argument('model'), $models);
 		$default = $search === false ? null : $search;
 		$askModel = $this->choice('Which model would you like to connect?', $models, $default);
@@ -176,7 +176,7 @@ class ModelConnect extends Command
 		}
 
 		if ($this->manager->isModelExists($name)) {
-			return $this->manager->makeClass($name);
+			return $this->manager->getModel($name);
 		}
 		
 		throw new ModelNotFound($name);
@@ -194,7 +194,7 @@ class ModelConnect extends Command
 			return $relation;
 		}
 		
-		throw new RelationNotAvailable("Relation {$relation} doesn't available");
+		throw new RelationNotAvailable($relation);
 	}
 
 	/**
@@ -212,10 +212,18 @@ class ModelConnect extends Command
 			$relation = $this->newRelationInstance($relation, $model, $toModel, $options);
 			$relation->createMethod();
 
-			$this->info('Connection has been created');
+			$modelName = $this->manager->getClassName($model);
+			$toModelName = $this->manager->getClassName($toModel);
+			$relationName = $this->manager->getClassName($relation);
+			
+			$this->info("Method {$modelName} {$relationName} {$toModelName} has been created");
+		} catch (MethodAlreadyExists $e) {
+			$this->danger($e->getMessage());
 		} catch (Exception $e) {
-			return $this->danger($e->getMessage());
+			$this->error($e->getMessage());
 		}
+
+		echo "---\n";
 	}
 
 	/**
