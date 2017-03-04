@@ -60,6 +60,7 @@ It will generate method in class Model User
 - first argument is Model where method will be created
 - second is relation name such as `hsaOne`, `hasMany`, `belongsTo`, `belongsToMany`, etc.
 - third is reference Model.
+
 #### Generate relation method in both Model
 ```bash
 php artisan orm:both-connect User oneToMany Phone
@@ -68,6 +69,7 @@ It will generate method in class Model User and Phone
 - first argument is first Model
 - second is both-relation name such as `oneToOne`, `oneToMany`, `manyToMany`, `morphOneToOne`, etc.
 - third is second Model.
+
 #### Auto Generate All Models
 important *) it only work if you has been created database and project is connected.
 ```bash
