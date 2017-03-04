@@ -5,6 +5,7 @@ namespace Flipbox\OrmManager;
 use Exception;
 use ReflectionClass;
 use ReflectionMethod;
+use Illuminate\Config\Repository;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Support\Arrayable;
@@ -24,7 +25,7 @@ class ModelManager implements Arrayable
     /**
      * config
      *
-     * @var array
+     * @var Repository
      */
     protected $config;
 
@@ -33,7 +34,7 @@ class ModelManager implements Arrayable
      *
      * @var array
      */
-    protected $models;
+    protected $models = [];
 
     /**
      * database
@@ -67,15 +68,16 @@ class ModelManager implements Arrayable
     /**
      * Create a new ModelManager instance.
      *
-     * @param array $config
+     * @param Repository $config
+     * @param DatabaseConnection $config
      * @return void
      */
-    public function __construct(array $config, DatabaseConnection $db)
+    public function __construct(Repository $config, DatabaseConnection $db)
     {
         $this->db = $db;
         $this->config = $config;
-        $this->path = $this->config['basepath'];
-        
+        $this->path = base_path($this->config->get('orm.basepath', 'app'));
+
         $this->scandModels();
     }
 
@@ -89,18 +91,18 @@ class ModelManager implements Arrayable
     {
         try {
             $dirs = scandir($path = $path ?: $this->path);
+
+            foreach($this->filterDirectory($dirs) as $file) {
+                if (is_dir($filepath = $path.'/'.$file)) {
+                    $this->scandModels($filepath);
+                }
+
+                if ($model = $this->makeModelFromFile($filepath)) {
+                    $this->models[$this->getClassName($model)] = $model;
+                }
+            }
         } catch (Exception $e) {
             //
-        }
-
-        foreach($this->filterDirectory($dirs) as $file) {
-            if (is_dir($filepath = $path.'/'.$file)) {
-                $this->scandModels($filepath);
-            }
-
-            if ($model = $this->makeModelFromFile($filepath)) {
-                $this->models[$this->getClassName($model)] = $model;
-            }
         }
     }
 
@@ -114,7 +116,7 @@ class ModelManager implements Arrayable
     {
         foreach ($dirs as $key => $dir) {
             if (in_array($dir, ['.', '..'])
-                OR in_array($dir, $this->config['exclude_dir'])) {
+                OR in_array($dir, $this->config->get('orm.exclude_dir', []))) {
 
                 unset($dirs[$key]);
             }

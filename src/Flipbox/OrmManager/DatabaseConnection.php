@@ -2,14 +2,22 @@
 
 namespace Flipbox\OrmManager;
 
-use DB;
 use Exception;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Schema\Column;
 use Illuminate\Support\Collection;
+use Doctrine\DBAL\Driver\PDOException;
+use Illuminate\Database\DatabaseManager;
 
 class DatabaseConnection
 {
+	/**
+	 * database manager
+	 *
+	 * @var DatabaseManager
+	 */
+	protected $db;
+
 	/**
 	 * check connection
 	 *
@@ -36,8 +44,10 @@ class DatabaseConnection
 	 *
 	 * @return void
 	 */
-	public function __construct()
+	public function __construct(DatabaseManager $db)
 	{
+		$this->db = $db;
+
 		$this->initDoctrine();
 		$this->scanDatabase();
 	}
@@ -51,11 +61,14 @@ class DatabaseConnection
 	protected function initDoctrine()
 	{
 		try {
-			$this->doctrine = DB::getDoctrineSchemaManager();
+			$this->doctrine = $this->db->getDoctrineSchemaManager();
+			
 			$platform = $this->doctrine->getDatabasePlatform();
 			$platform->registerDoctrineTypeMapping('enum', 'string');
+			
 			$this->connection = true;
-		} catch (Exception $e) {
+		} catch (PDOException $e) {
+			echo "{$e->getMessage()}\n";
 			$this->connection = false;
 		}
 	}

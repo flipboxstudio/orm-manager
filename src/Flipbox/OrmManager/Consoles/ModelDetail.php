@@ -2,9 +2,7 @@
 
 namespace Flipbox\OrmManager\Consoles;
 
-use ReflectionClass;
 use Illuminate\Console\Command;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\DatabaseConnection;
@@ -17,18 +15,18 @@ class ModelDetail extends Command
     }
 
     /**
+     * database
+     *
+     * @var DatabaseConnection
+     */
+    protected $db;
+
+    /**
      * model manager
      *
      * @var ModelManager
      */
     protected $manager;
-
-    /**
-     * database
-     *
-     * @var ModelManager
-     */
-    protected $db;
 
     /**
      * The console command name.
@@ -47,14 +45,16 @@ class ModelDetail extends Command
     /**
      * Create a new queue listen command.
      *
+     * @param DatabaseConnection $db
+     * @param ModelManager $manager
      * @return void
      */
-    public function __construct(Repository $config)
+    public function __construct(DatabaseConnection $db, ModelManager $manager)
     {
         parent::__construct();
 
-        $this->db = new DatabaseConnection;
-        $this->manager = new ModelManager($config->get('orm'), $this->db);
+        $this->db = $db;
+        $this->manager = $manager;
     }
 
     /**

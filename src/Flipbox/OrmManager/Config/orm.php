@@ -5,11 +5,10 @@ return [
 	|--------------------------------------------------------------------------
 	| Model Base Path
 	|--------------------------------------------------------------------------
-	| base path of models should be path of folder of model
-	| by default is app/
+	| base path of models
 	*/
 
-	'basepath' => app_path(),
+	'basepath' => 'app',
 
 	/*
 	|--------------------------------------------------------------------------

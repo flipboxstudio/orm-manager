@@ -5,7 +5,6 @@ namespace Flipbox\OrmManager\Consoles;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;

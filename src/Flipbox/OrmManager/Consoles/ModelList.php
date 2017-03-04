@@ -4,7 +4,6 @@ namespace Flipbox\OrmManager\Consoles;
 
 use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Flipbox\OrmManager\DatabaseConnection;
 use Flipbox\OrmManager\Consoles\Command as LocalComand;
@@ -12,7 +11,7 @@ use Flipbox\OrmManager\Consoles\Command as LocalComand;
 class ModelList extends Command
 {
     use LocalComand, FontColor {
-        FontColor::paintstring insteadof LocalComand;
+        FontColor::paintString insteadof LocalComand;
     }
 
 	/**
@@ -46,26 +45,29 @@ class ModelList extends Command
     /**
      * Create a new queue listen command.
      *
+     * @param DatabaseConnection $db
+     * @param ModelManager $manager
      * @return void
      */
-    public function __construct(Repository $config)
+    public function __construct(DatabaseConnection $db, ModelManager $manager)
     {
     	parent::__construct();
 
-        $this->db = new DatabaseConnection;
-    	$this->manager = new ModelManager($config->get('orm'), $this->db);
+        $this->db = $db;
+        $this->manager = $manager;
     }
 
     /**
-	 * Execute the console command.
-	 *
-	 * @return mixed
-	 */
-	public function handle()
-	{
-		try {
-			$models = $this->manager->toArray();
-		} catch (Exception $e) {
+     * Execute the console command.
+     *
+     * @return mixed
+     */
+    public function handle()
+    {
+        try {
+            $models = $this->manager->toArray();
+        } catch (Exception $e) {
+            dd($e);
 			return $this->error($e->getMessage());
 		}
 

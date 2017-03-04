@@ -2,10 +2,9 @@
 
 namespace Flipbox\OrmManager;
 
-use Flipbox\OrmManager\Console;
 use Illuminate\Support\ServiceProvider;
 
-class OrmManagerServiceProvider extends ServiceProvider
+class LaravelServiceProvider extends ServiceProvider
 {
 	/**
      * Perform post-registration booting of services.
@@ -24,22 +23,20 @@ class OrmManagerServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/Config/orm.php', 'orm');
 
-    	$this->registerCommand();
-    }
+        $this->app->singleton('orm.database', function ($app) {
+            return new DatabaseConnection($app['db']);
+        });
 
-    /**
-     * register commands
-     *
-     * @return void
-     */
-    protected function registerCommand()
-    {
-    	$this->commands([
+        $this->app->singleton('orm.manager', function ($app) {
+            return new ModelManager($app['config'], $app['orm.database']);
+        });
+
+        $this->commands([
             Consoles\ModelList::class,
-    		Consoles\ModelDetail::class,
+            Consoles\ModelDetail::class,
             Consoles\ModelConnect::class,
             Consoles\ModelBothConnect::class,
             Consoles\ModelAutoConnect::class,
-    	]);
+        ]);
     }
 }

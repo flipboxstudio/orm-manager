@@ -5,7 +5,6 @@ namespace Flipbox\OrmManager\Consoles;
 use Exception;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\DatabaseConnection;
@@ -20,19 +19,19 @@ class ModelConnect extends Command
         FontColor::paintString insteadof LocalComand;
     }
 
+    /**
+     * database
+     *
+     * @var DatabaseConnection
+     */
+    protected $db;
+
 	/**
 	 * model manager
 	 *
 	 * @var ModelManager
 	 */
 	protected $manager;
-
-    /**
-     * database
-     *
-     * @var ModelManager
-     */
-    protected $db;
 
     /**
      * The console command name.
@@ -50,17 +49,19 @@ class ModelConnect extends Command
     protected $description = 'Generate connections method of class model';
 
     /**
-	 * Create a new ModelConnect instance.
-	 *
-	 * @param Repository $config
-	 * @return void
-	 */
-	public function __construct(Repository $config)
-	{
-		parent::__construct();
-		$this->db = new DatabaseConnection;
-		$this->manager = new ModelManager($config['orm'], $this->db);
-	}
+     * Create a new queue listen command.
+     *
+     * @param DatabaseConnection $db
+     * @param ModelManager $manager
+     * @return void
+     */
+    public function __construct(DatabaseConnection $db, ModelManager $manager)
+    {
+    	parent::__construct();
+
+        $this->db = $db;
+        $this->manager = $manager;
+    }
 
     /**
 	 * Execute the console command.

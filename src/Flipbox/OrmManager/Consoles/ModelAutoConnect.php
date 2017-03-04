@@ -4,7 +4,6 @@ namespace Flipbox\OrmManager\Consoles;
 
 use Exception;
 use Illuminate\Support\Str;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\DatabaseConnection;
