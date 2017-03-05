@@ -68,7 +68,6 @@ class DatabaseConnection
 			
 			$this->connection = true;
 		} catch (PDOException $e) {
-			echo "{$e->getMessage()}\n";
 			$this->connection = false;
 		}
 	}
@@ -126,11 +125,13 @@ class DatabaseConnection
 	 */
 	protected function isPrimaryKey(Table $table, Column $column)
 	{
-		$primaryColumns = $table->getPrimaryKey()->getColumns();
+		if ($table->hasPrimaryKey()) {
+			$primaryKeys = $table->getPrimaryKey()->getColumns();
 
-		return $table->hasPrimaryKey()
-				? in_array($column->getName(), $primaryColumns)
-				: flase;
+			return in_array($column->getName(), $primaryKeys);
+		}
+
+		return false;
 	}
 
 	/**

@@ -67,7 +67,6 @@ class ModelList extends Command
         try {
             $models = $this->manager->toArray();
         } catch (Exception $e) {
-            dd($e);
 			return $this->error($e->getMessage());
 		}
 
