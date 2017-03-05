@@ -5,7 +5,6 @@ namespace Flipbox\OrmManager\Consoles;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;
@@ -13,6 +12,13 @@ use Flipbox\OrmManager\Exceptions\RelationNotAvailable;
 
 class ModelBothConnect extends ModelConnect
 {
+    /**
+     * use multiple to model
+     *
+     * @var bool
+     */
+    protected $multipleToModel = false;
+
     /**
      * The console command name.
      *
@@ -35,17 +41,21 @@ class ModelBothConnect extends ModelConnect
      */
     public function handle()
     {
+        $this->multipleToModel = in_array($this->argument('relation'), ['morphOneToOne', 'morphOneToMany', 'morphManyToMany']);
+
         try {
             if ($this->option('interactive')) {
                 extract($this->runInteractiveConnect());
             } else {
                 extract($this->getArgumentConnect());
             }
+
             $this->buildRelations($model, $relation, $toModel);        
         } catch (Exception $e) {
             return $this->error($e->getMessage());
         }
     }
+
     /**
      * get data input from arguments
      *
@@ -56,7 +66,7 @@ class ModelBothConnect extends ModelConnect
         if ($this->isRequiredArgFulfilled($this->arguments())) {
             $data['model'] = $this->getModel($this->argument('model'));
             $data['relation'] = $this->getRelation($this->argument('relation'));
-            $data['toModel'] = $this->getModel($this->argument('to-model'));
+            $data['toModel'] = $this->getModel($this->argument('to-model'), $this->multipleToModel);
     
             return $data;
         }
@@ -88,7 +98,7 @@ class ModelBothConnect extends ModelConnect
      */
     protected function runInteractiveConnect()
     {
-        $models = $this->manager->getModels()->pluck('name')->toArray();
+        $models = $this->manager->getModels()->keys()->toArray();
 
         $search = array_search($this->argument('model'), $models);
         $default = $search === false ? null : $search;
@@ -99,10 +109,12 @@ class ModelBothConnect extends ModelConnect
         $default = $search === false ? null : $search;
         $data['relation'] = $this->choice('Which relation between two models?', $this->manager->both_relations, $default);
 
-        $search = array_search($this->argument('model'), $models);
+        $search = array_search($this->argument('to-model'), $models);
         $default = $search === false ? null : $search;
-        $askToModel = $this->choice('Which model that you want to connect with '.$askModel, $models, $default);
-        $data['toModel'] = $this->getModel($askToModel);
+        $info = "(Use comma separated for multiple models)";
+        $multipleInfo = $this->multipleToModel ? $this->paintString($info, 'green') : '';
+        $askToModel = $this->choice('Which '.($this->multipleToModel ? 'models' : 'model').' that you want to connect with '.$askModel.' '.$multipleInfo, $models, $default, null, $this->multipleToModel);
+        $data['toModel'] = $this->getModel($askToModel, $this->multipleToModel);
 
         return $data;
     }
@@ -127,17 +139,17 @@ class ModelBothConnect extends ModelConnect
      *
      * @param Model $model
      * @param string $relation
-     * @param mix Model $toModel
+     * @param mixed $toModel
+     * @param array $options
      * @return void
      */
-    protected function buildRelations(Model $model, $relation, Model $toModel)
+    protected function buildRelations(Model $model, $relation, $toModel, array $options=[])
     {
         try {
-            $bothRelation = $this->newBothRelationInstance($relation, $model, $toModel);
+            $bothRelation = $this->newBothRelationInstance($relation, $model, $toModel, $options);
 
             $bothRelation->buildRelations();
         } catch (Exception $e) {
-            dd($e);
             return $this->error($e->getMessage());
         }
     }
@@ -148,12 +160,13 @@ class ModelBothConnect extends ModelConnect
      * @param string $relation
      * @param Model $model
      * @param mix Model|null $toModel
+     * @param array $options
      * @return Model
      */
-    protected function newBothRelationInstance($relation, Model $model, $toModel)
+    protected function newBothRelationInstance($relation, Model $model, $toModel, array $options=[])
     {
         $class = 'Flipbox\OrmManager\BothRelations\\'.Str::studly($relation);
 
-        return new $class($this, $this->manager, $model, $toModel);
+        return new $class($this, $this->manager, $model, $toModel, $options);
     }
 }

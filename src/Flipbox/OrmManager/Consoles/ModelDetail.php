@@ -2,27 +2,31 @@
 
 namespace Flipbox\OrmManager\Consoles;
 
-use ReflectionClass;
 use Illuminate\Console\Command;
-use Illuminate\Config\Repository;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
+use Flipbox\OrmManager\DatabaseConnection;
+use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelDetail extends Command
 {
+    use LocalComand, FontColor {
+        FontColor::paintString insteadof LocalComand;
+    }
+
+    /**
+     * database
+     *
+     * @var DatabaseConnection
+     */
+    protected $db;
+
     /**
      * model manager
      *
      * @var ModelManager
      */
     protected $manager;
-
-    /**
-     * database
-     *
-     * @var ModelManager
-     */
-    protected $database;
 
     /**
      * The console command name.
@@ -41,14 +45,16 @@ class ModelDetail extends Command
     /**
      * Create a new queue listen command.
      *
+     * @param DatabaseConnection $db
+     * @param ModelManager $manager
      * @return void
      */
-    public function __construct(Repository $config)
+    public function __construct(DatabaseConnection $db, ModelManager $manager)
     {
         parent::__construct();
 
-        $this->manager = new ModelManager($config->get('orm'));
-        $this->database = $this->manager->database;
+        $this->db = $db;
+        $this->manager = $manager;
     }
 
     /**
@@ -61,7 +67,7 @@ class ModelDetail extends Command
         $model = $this->argument('model');
 
         if ($this->manager->isModelExists($model)) {
-            return $this->showDetail($this->manager->makeClass($model));
+            return $this->showDetail($this->manager->getModel($model));
         }
 
         $this->error("Model {$model} is not found");
@@ -75,40 +81,48 @@ class ModelDetail extends Command
      */
     protected function showDetail(Model $model)
     {
-        $refClass = new ReflectionClass($model);
+        $name = $this->manager->getClassName($model);
 
-        $this->question("Detail of Model {$refClass->getShortName()}");
+        $this->title("Summary of Model {$name} :");
 
-        if (!$this->database->isConnected()) {
-            $this->warn("Not Connected to databse, please check your connection config\r");
+        $summary = $this->manager->getModelSummary($name);
+        $rows = [];
+
+        foreach ($summary as $key => $value) {
+            if (is_bool($value)) {
+                $value = $value ? 'yes' : 'no';
+            }
+
+            $valueText = $this->paintString($value, 'brown');
+
+            $rows[] = [$key, $valueText];
         }
 
-        $this->info("table : {$model->getTable()}");
-        $this->info("foreign key : {$model->getKeyName()}");
-    
-        if ($this->database->isConnected()) {
-            $this->showTableFileds($model);
-        }
+        $this->table(['Key', 'Value'], $rows);
 
+        $this->showDatabaseFields($model);
         $this->showRelatoins($model);
-        $this->showMutators($model);
-        $this->showAccesors($model);
-        $this->showScopes($model);
+        $this->showProperty($model);
     }
 
     /**
-     * show table fileds
+     * show database fileds
      *
      * @param Model $model
      * @return void
      */
-    protected function showTableFileds(Model $model)
+    protected function showDatabaseFields(Model $model)
     {
-        $this->info("model table");
-        
-        $fields = $this->database->getTableFields($model->getTable());
-        $header = ['name', 'type','null','length', 'unsigned', 'autoincrement', 'primary_key', 'foreign_key'];
-        $this->table($header, $fields);
+        $this->title("Table {$model->getTable()} :");
+
+        if ( ! $this->db->isConnected()) {
+            $this->warn("Not Connected to databse, please check your connection config\r");
+        } else {
+            $fields = $this->db->getFields($model->getTable());
+            $headers = ['name', 'type', 'null', 'length', 'unsigned', 'autoincrement', 'primary_key', 'foreign_key'];
+
+            $this->table($headers, $fields->toArray());
+        }
     }
 
     /**
@@ -119,81 +133,71 @@ class ModelDetail extends Command
      */
     protected function showRelatoins(Model $model)
     {
-        $this->info("model relations");
+        $name = $this->manager->getClassName($model);
 
-        $refModel = new ReflectionClass($model);
+        $this->title("Relations of Model {$name}: ");
+
         $relations = $this->manager->getRelations($model);
         $tbody = [];
 
         foreach ($relations as $relation) {
-            $refToModel = new ReflectionClass($relation);
+            $relationName = $this->manager->getClassName($relation);
             $related = $relation->getRelated() ?:null;
 
             $tbody[] = [
-                $refModel->getShortName(),
-                "\033[33m{$refToModel->getShortName()}\033[0m",
-                $related ? (new ReflectionClass($related))->getShortName() : '-',
+                $this->paintString($relationName, 'brown'),
+                $related ? $this->manager->getClassName($related) : '',
             ];
         }
 
-        $this->table(['model', 'relation', 'to-model'], $tbody);
+        $this->table(['relation', 'model'], $tbody);
     }
 
     /**
-     * show mutators of model
+     * show table property
      *
      * @param Model $model
      * @return void
      */
-    protected function showMutators(Model $model)
+    protected function showProperty(Model $model)
     {
-        $mutators = $this->manager->getMutators($model);
+        $name = $this->manager->getClassName($model);
 
-        if ($mutators->count() > 0) {
-            $mutators = implode(', ', $mutators->map(function($method){
-                return $method->getName();
-            })->toArray());
+        $this->title("Property of Model {$name}: ");
 
-            $this->info("model mutators : {$mutators}");
+        $properties = [
+            'mutators' => $this->manager->getMutators($model),
+            'accessors' => $this->manager->getAccessors($model),
+            'scopes' => $this->manager->getScopes($model),
+        ];
+
+        $rows = [];
+
+        foreach (max($properties) as $property => $method) {
+            $mutator = '';
+            if (($mutators = &$properties['mutators'])->count() > 0) {
+                $mutator = $this->paintString($mutators->first()->getName(), 'brown');
+                unset($mutators[0]);
+            }
+
+            $accessor = '';
+            if (($accessors = &$properties['accessors'])->count() > 0) {
+                $accessor = $this->paintString($accessors->first()->getName(), 'brown');
+                unset($accessors[0]);
+            }
+
+            $scope = '';
+            if (($scopes = &$properties['scopes'])->count() > 0) {
+                $scope = $this->paintString($scopes->first()->getName(), 'brown');
+                unset($scopes[0]);
+            }
+
+            $rows[] = [$mutator, $accessor, $scope];
         }
-    }
 
-    /**
-     * show accesors of model
-     *
-     * @param Model $model
-     * @return void
-     */
-    protected function showAccesors(Model $model)
-    {
-        $accessors = $this->manager->getAccessors($model);
+        $headers = ['mutator', 'accessor', 'scope'];
 
-        if ($accessors->count() > 0) {
-            $accessors = implode(', ', $accessors->map(function($method){
-                return $method->getName();
-            })->toArray());
-
-            $this->info("model accessors : {$accessors}");
-        }
-    }
-
-
-    /**
-     * show scopes of model
-     *
-     * @param Model $model
-     * @return void
-     */
-    protected function showScopes(Model $model)
-    {
-        $scopes = $this->manager->getScopes($model);
-
-        if ($scopes->count() > 0) {
-            $scopes = implode(', ', $scopes->map(function($method){
-                return $method->getName();
-            })->toArray());
-
-            $this->info("model scopes : {$scopes}");
-        }
+        $this->table($headers, $rows);
+        
     }
 }

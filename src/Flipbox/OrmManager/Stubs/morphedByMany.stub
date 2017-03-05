@@ -3,5 +3,5 @@
      */
     public function DummyMethodName()
     {
-        return $this->morphedByMany(DummyToModel::class, 'name', 'table', 'foreign_key', 'related_key');
+        return $this->morphedByMany(DummyToModel::class, 'name', 'pivot_table', 'foreign_key', 'related_key');
     }

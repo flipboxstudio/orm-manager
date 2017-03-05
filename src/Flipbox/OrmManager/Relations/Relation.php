@@ -2,20 +2,17 @@
 
 namespace Flipbox\OrmManager\Relations;
 
-use Exception;
 use ReflectionClass;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
-use Flipbox\OrmManager\FontColor;
 use Flipbox\OrmManager\ModelManager;
+use Illuminate\Database\Eloquent\Model;
+use Flipbox\OrmManager\DatabaseConnection;
 use Flipbox\OrmManager\Exceptions\TableNotExists;
 use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
 
-abstract class Model
+abstract class Relation
 {
-	use FontColor;
-	
 	/**
 	 * laravel Command
 	 *
@@ -35,7 +32,7 @@ abstract class Model
 	 *
 	 * @var DatabaseConnection
 	 */
-	protected $database;
+	protected $db;
 
 	/**
 	 * model that want to connect to
@@ -73,13 +70,6 @@ abstract class Model
 	protected $requiredOptions = [];
 
 	/**
-	 * options that will be check
-	 *
-	 * @var array
-	 */
-	protected $checkingOptions = [];
-
-	/**
 	 * new line
 	 *
 	 * @var string
@@ -94,24 +84,56 @@ abstract class Model
 	protected $reverse = false;
 
 	/**
+	 * colored asset text
+	 *
+	 * @var array
+	 */
+	protected $text = [];
+
+	/**
 	 * Create a new Model instance.
 	 *
 	 * @param Command $command
 	 * @param ModelManager $manager
-	 * @param EloquentModel $model
-	 * @param EloquentModel $toModel
+	 * @param Model $model
+	 * @param mixed $toModel
 	 * @param array $options
 	 * @return void
 	 */
-	public function __construct(Command $command, ModelManager $manager, EloquentModel $model, $toModel, array $options = [])
+	public function __construct(Command $command,
+								ModelManager $manager,
+								Model $model,
+								$toModel=null,
+								array $options=[])
 	{
 		$this->command = $command;
 		$this->manager = $manager;
-		$this->database = $this->manager->database;
+		$this->db = $this->manager->db;
 		$this->model = $this->reverse ? $toModel : $model;
 		$this->toModel = $this->reverse ? $model : $toModel;
 
+		$this->showCaptionProcess($model, $toModel);
+		$this->setDefaultOptions($options);
+		$this->stylingText();
 		$this->setRelationOptions($options);
+	}
+
+	/**
+	 * show captions process
+	 *
+	 * @param Model $model
+	 * @param Model $toModel
+	 * @return void
+	 */
+	protected function showCaptionProcess(Model $model, Model $toModel=null)
+	{
+		$modelName = $this->manager->getClassName($model);
+		$toModelName = $this->manager->getClassName($toModel);
+		$relationName = $this->manager->getClassName($this);
+
+		$caption = "Creating relation {$modelName} {$relationName} {$toModelName} :";
+
+		$this->command->title($caption);
 	}
 
 	/**
@@ -120,33 +142,12 @@ abstract class Model
 	 * @param array $options
 	 * @return void
 	 */
-	protected function setRelationOptions(array $options=[])
+	protected function setRelationOptions(array $options = [])
 	{
-		$this->checkingOptions = $options;
-		$this->setDefaultOptions();
-		$this->checkingOptions = array_merge($this->defaultOptions, $options);
-		$this->preparationSetOptions();
-
-		$toModelName = '';
-		$refModel = new ReflectionClass($this->model);
-		$thisModel = new ReflectionClass($this);
-
-		if (! is_null($this->toModel)) {
-			$refToModel = new ReflectionClass($this->toModel);
-			$toModelName = $refToModel ? $refToModel->getShortName() : '';
-		}
-
-		$this->command->question(">>> Creating relation {$refModel->getShortName()} {$thisModel->getShortName()} {$toModelName}")."\n";
-
-		if ($this->database->isConnected()) {
-			if (! $this->database->isTableExists($this->model->getTable())) {
-				throw new TableNotExists("Table {$this->model->getTable()} doesn't exists.");
-			}
-
-			if (! is_null($this->toModel) AND ! $this->database->isTableExists($this->toModel->getTable())) {
-				throw new TableNotExists("Table {$this->toModel->getTable()} doesn't exists.");
-			}
-
+		if (count($options) > 0) {
+			$this->options = $options;
+		} elseif ($this->db->isConnected()) {
+			$this->checkModelDatabases();
 			$this->setConnectedRelationOptions();
 		} else {
 			$this->setNotConnectedRelationOptions();
@@ -154,11 +155,24 @@ abstract class Model
 	}
 
 	/**
-	 * preparation set options
+	 * check model databases
 	 *
+	 * @param  
 	 * @return void
 	 */
-	protected function preparationSetOptions() {}
+	protected function checkModelDatabases()
+	{
+		$modelName = $this->manager->getClassName($this->model);
+		$toModelName = $this->manager->getClassName($this->toModel);
+
+		if (! $this->db->isTableExists($this->model->getTable())) {
+			throw new TableNotExists($this->model->getTable(), $modelName);
+		}
+
+		if (! is_null($this->toModel) AND ! $this->db->isTableExists($this->toModel->getTable())) {
+			throw new TableNotExists($this->toModel->getTable(), $toModelName);
+		}
+	}
 
 	/**
 	 * create method in the model
@@ -174,7 +188,7 @@ abstract class Model
 		$modelCode = $this->clearDefaultModelContent(
 			file_get_contents($refModel->getFileName())
 		);
-		
+
 		$this->writeMethodToFile($refModel->getFileName(), $modelCode, $methodCode);
 	}
 
@@ -186,20 +200,39 @@ abstract class Model
 	public function buildMethod()
 	{
 		$methodName = $this->generateMethodName();
-		$stubFile = $this->getStub();
-		$stub = file_get_contents($stubFile);
-
-		$refModel = new ReflectionClass($this->reverse ? $this->toModel : $this->model);
+		$stub = file_get_contents($this->getStub());
+		$model = $this->reverse ? $this->toModel : $this->model;
+		$modelName = $this->manager->getClassName($model);
 
 		$stub = str_replace('DummyMethodName', $methodName, $stub);
-		$stub = str_replace('DummyModel', strtolower($refModel->getShortName()), $stub);
+		$stub = str_replace('DummyModel', strtolower($modelName), $stub);
 		
 		if (! is_null($this->toModel)) {
-			$refToModel = new ReflectionClass($this->reverse ? $this->model : $this->toModel);
-			$stub = str_replace('DummyToModel', $refToModel->getShortName(), $stub);
+			$stub = str_replace('DummyToModel', $this->getRelationClassName(
+				$this->model, $this->toModel
+			), $stub);
 		}
 
 		return $this->applyOptions($this->beforeApplyOptions($stub));
+	}
+
+	/**
+	 * get relation name class
+	 *
+	 * @param Model $model
+	 * @param Model $toModel
+	 * @return data type
+	 */
+	protected function getRelationClassName(Model $model, Model $toModel)
+	{
+		$refModel = new ReflectionClass($this->reverse ? $toModel : $model);
+		$refToModel = new ReflectionClass($this->reverse ? $model : $toModel);
+
+		if ($refModel->getNamespaceName() === $refToModel->getNamespaceName()) {
+			return $refToModel->getShortName();
+		}
+
+		return '\\'.$refToModel->getName();
 	}
 
 	/**
@@ -221,16 +254,17 @@ abstract class Model
 	 */
 	protected function generateMethodName()
 	{
-		$refToModel = new ReflectionClass($this->reverse ? $this->model : $this->toModel);
-		$name = $refToModel->getShortName();
+		$model = $this->reverse ? $this->toModel : $this->model;
+		$toModel = $this->reverse ? $this->model : $this->toModel;
 
-		$methodName = Str::camel($this->getMethodName($name));
+		$className = $this->manager->getClassName($toModel);
+		$methodName = Str::camel($this->getMethodName($className));
 
-		if ($this->manager->isMethodExists($this->reverse ? $this->toModel : $this->model, $methodName)) {
-			throw new MethodAlreadyExists($methodName);
+		if (! $this->manager->isMethodExists($model, $methodName)) {
+			return $methodName;
 		}
 
-		return $methodName;
+		throw new MethodAlreadyExists($methodName);
 	}
 
 	/**
@@ -252,14 +286,12 @@ abstract class Model
 	 */
 	protected function applyOptions($stub)
 	{
-		$this->mergeUnchechingOptions();
-
 		$replaced = false;
 
 		foreach (array_reverse($this->defaultOptions) as $key => $option) {
 			if (! $replaced) {
+				$replace = '';
 				$replaceWithComma = '';
-				$replaceWithSingle = '';
 			}
 
 			if (in_array($key, $this->requiredOptions)) {
@@ -269,39 +301,25 @@ abstract class Model
 					$value = $this->options[$key];
 				}
 
+				$replace = "'$value'";
 				$replaceWithComma = ", '$value'";
-				$replaceWithSingle = "'$value'";
 			} elseif (array_key_exists($key, $this->options)
 				AND $this->options[$key] !== $this->defaultOptions[$key]) {
 
-				$replaceWithComma = ", '{$this->options[$key]}'";
-				$replaceWithSingle = "'{$this->options[$key]}'";
 				$replaced = true;
+				$replace = "'{$this->options[$key]}'";
+				$replaceWithComma = ", '{$this->options[$key]}'";
 
 			} elseif ($replaced) {
+				$replace = "null";
 				$replaceWithComma = ", null";
-				$replaceWithSingle = "null";
 			}
 
 			$stub = str_replace(", '{$key}'", $replaceWithComma, $stub);
-			$stub = str_replace("'{$key}'", $replaceWithSingle, $stub);
+			$stub = str_replace("'{$key}'", $replace, $stub);
 		}
 
 		return $stub;
-	}
-
-	/**
-	 * merger unchecking options to options
-	 *
-	 * @return void
-	 */
-	protected function mergeUnchechingOptions()
-	{
-		foreach ($this->checkingOptions as $key => $option) {
-			if ($this->checkingOptions[$key] !== $this->defaultOptions[$key]) {
-				$this->options[$key] = $option;
-			}
-		}
 	}
 
 	/**
@@ -346,21 +364,30 @@ abstract class Model
 	protected function setNotConnectedRelationOptions()
 	{
 		$this->command->warn('Can\'t connect to the database, plase confirm to follow instruction!');
-		
+
 		$rules = $this->getRelationOptionsRules();
-		
+
 		array_walk($rules, function(&$rule, $key) use ($rules) {
-			$rule = ' '.($key+1).'. '.$rule;
+			$rule = ($key+1).'. '.$rule;
 		});
 
-		print(implode("\n", $rules));
-
-		$confirm = 'confirm that you will create the database schema as above!';
+		$rules[] = 'confirm that you will create the database schema as above!';
+		$confirm = implode("\n ", $rules);
 
 		if (! $this->command->confirm($confirm, true)) {
-			$this->command->warn('Use custome options to connect model?');
+			$this->command->warn('You are trying to use custome options to connect models!');
 			$this->askToUseCustomeOptions();
 		}
+	}
+
+	/**
+	 * get model tables
+	 *
+	 * @return array
+	 */
+	protected function getTables()
+	{
+		return $this->db->getTables();
 	}
 
 	/**
@@ -371,7 +398,7 @@ abstract class Model
 	 */
 	protected function getFields($table)
 	{
-		$fileds = $this->database->getTableFields($table);
+		$fileds = $this->db->getFields($table);
 
 		return $fileds->pluck('name')->toArray();
 	}
@@ -379,9 +406,17 @@ abstract class Model
 	/**
 	 * set default options
 	 *
+	 * @param array $options
 	 * @return void
 	 */
-	abstract protected function setDefaultOptions();
+	abstract protected function setDefaultOptions(array $options=[]);
+	
+	/**
+	 * styling text
+	 *
+	 * @return void
+	 */
+	abstract protected function stylingText();
 
 	/**
 	 * get connected db relation options

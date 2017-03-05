@@ -6,7 +6,7 @@ use ReflectionClass;
 use Illuminate\Support\Str;
 use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
 
-class MorphTo extends Model
+class MorphTo extends Relation
 {
 	/**
 	 * method suffix
@@ -32,16 +32,19 @@ class MorphTo extends Model
 	/**
 	 * set default options
 	 *
+	 * @param $options
 	 * @return void
 	 */
-	protected function setDefaultOptions()
+	protected function setDefaultOptions(array $options=[])
 	{
-		if (! isset($this->checkingOptions['name'])) {		
+		$this->text['relation_name_text'] = $this->command->paintString('relation name', 'brown');
+
+		if (! isset($options['name'])) {
 			$refModel = new ReflectionClass($this->model);
 			$name = $this->getRelationName(strtolower($refModel->getShortName()));
-	        $name = $this->command->ask('What relation name do you use?', $name);
+	        $name = $this->command->ask("What {$this->text['relation_name_text']} do you use?", $name);
 		} else {
-			$name = $this->checkingOptions['name'];
+			$name = $options['name'];
 		}
 
 		$this->defaultOptions = [
@@ -52,33 +55,45 @@ class MorphTo extends Model
 	}
 
 	/**
+	 * styling text
+	 *
+	 * @return void
+	 */
+	protected function stylingText()
+	{
+		$this->text = array_merge($this->text, [
+			'table' => "[".$this->command->paintString($this->model->getTable(), 'green')."]",
+			'name' => "[".$this->command->paintString($this->defaultOptions['name'], 'green')."]",
+			'type' => "[".$this->command->paintString($this->defaultOptions['type'], 'green')."]",
+			'id' => "[".$this->command->paintString($this->defaultOptions['id'], 'green')."]",
+			'related_type_text' => $this->command->paintString('related type', 'brown'),
+			'related_id_text' => $this->command->paintString('related id', 'brown')
+		]);
+	}
+
+	/**
 	 * set connected db relation options
 	 *
 	 * @return void
 	 */
 	protected function setConnectedRelationOptions()
 	{
-		$fields = $this->database->getTableFields($this->model->getTable());
-
-		if (! isset($this->checkingOptions['name'])) {		
-			$refModel = new ReflectionClass($this->model);
-			$name = $this->getRelationName(strtolower($refModel->getShortName()));
-	        $name = $this->command->ask('What relation name do you use?', $name);
-		} else {
-			$name = $this->checkingOptions['name'];
-		}
+		$fields = $this->getFields($this->model->getTable());
+		$name = $this->defaultOptions['name'];
 
 		if (! in_array($this->defaultOptions['type'], $fields) 
 			OR ! in_array($this->defaultOptions['id'], $fields)) {
-			$this->options['name'] = $name = $this->command->ask("Can't find {$this->defaultOptions['type']} OR {$this->defaultOptions['id']}, you may not use {$this->defaultOptions['name']} as relation name, what are you using?");
+			$this->options['name'] = $name = $this->command->ask("Can't find {$this->text['type']} or {$this->text['id']} in the table {$this->text['table']}, you may not use {$this->text['name']} as {$this->text['relation_name_text']}, what are you using?");
+			$this->text['type'] = "[".$this->command->paintString($this->getTypeName($name), 'green')."]";
+			$this->text['id'] = "[".$this->command->paintString($this->getIdName($name), 'green')."]";
 		}
 
-		if (! in_array($this->getTypeName($name ?: null), $fields)) {
-			$this->options['type'] = $this->command->choice("Can't find {$this->defaultOptions['type']}, what are you using?", $fields);
+		if (! in_array($this->getTypeName($name), $fields)) {
+			$this->options['type'] = $this->command->choice("Can't find {$this->text['type']} as {$this->text['related_type_text']}, what are you using?", $fields);
 		}
 
-		if (! in_array($this->getIdName($name ?: null), $fields)) {
-			$this->options['id'] = $this->command->choice("Can't find {$this->defaultOptions['id']}, what are you using?", $fields);
+		if (! in_array($this->getIdName($name), $fields)) {
+			$this->options['id'] = $this->command->choice("Can't find {$this->text['id']} as {$this->text['related_id_text']}, what are you using?", $fields);
 		}
 	}
 
@@ -90,9 +105,9 @@ class MorphTo extends Model
 	protected function getRelationOptionsRules()
 	{
 		return [
-			"Relation name is {$this->defaultOptions['name']}",
-			"There should be field {$this->defaultOptions['type']} in table {$this->model->getTable()}",
-			"There should be field {$this->defaultOptions['id']} in table {$this->model->getTable()}",
+			"The {$this->text['relation_name_text']} is {$this->text['name']}",
+			"There should be field {$this->text['type']} in table {$this->text['table']} as {$this->text['related_type_text']}",
+			"There should be field {$this->text['id']} in table {$this->text['table']} as {$this->text['related_id_text']}",
 		];
 	}
 
@@ -103,29 +118,11 @@ class MorphTo extends Model
 	 */
 	protected function askToUseCustomeOptions()
 	{
-		$this->options['name'] = $this->command->ask("The name of relation is will be?", $this->defaultOptions['name']);
-		$this->options['type'] = $this->command->ask("The type of relation is will be?", $this->getTypeName($this->options['name']));
-		$this->options['id'] = $this->command->ask("The name of relation is will be?", $this->getIdName($this->options['name']));
-	}
-
-	/**
-	 * generate method relation name
-	 *
-	 * @param string $relation
-	 * @return string
-	 */
-	protected function generateMethodName()
-	{
-		$refModel = new ReflectionClass($this->model);
-		$name = $refModel->getShortName();
-
-		$methodName = Str::camel($this->getMethodName($name));
-
-		if ($this->manager->isMethodExists($this->model, $methodName)) {
-			throw new MethodAlreadyExists($methodName);
-		}
-
-		return $methodName;
+		$this->options = [
+			'name' => $this->command->ask("The {$this->text['relation_name_text']} of relation is will be?", $this->defaultOptions['name']),
+			'type' => $this->command->ask("The {$this->text['related_type_text']} of relation is will be?", $this->getTypeName($this->options['name'])),
+			'id' => $this->command->ask("The {$this->text['related_id_text']} of relation is will be?", $this->getIdName($this->options['name'])),
+		];
 	}
 
 	/**
@@ -157,7 +154,13 @@ class MorphTo extends Model
      */
     protected function getMethodName($name)
     {
-    	return $this->getRelationName($name);
+		$methodName = $this->getRelationName($name);
+
+		if ($this->defaultOptions['name'] !== $methodName) {
+			return $this->defaultOptions['name'];
+		}
+
+		return $methodName;
     }
 
 	/**

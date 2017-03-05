@@ -2,49 +2,41 @@
 
 namespace Flipbox\OrmManager\Relations;
 
-use Illuminate\Support\Str;
-
-class HasOne extends Model
+class HasOne extends Relation
 {
-	/**
-	 * colored asset text
-	 *
-	 * @var array
-	 */
-	private $text = [];
-
 	/**
 	 * set default options
 	 *
+	 * @param array $options
 	 * @return void
 	 */
-	protected function setDefaultOptions()
+	protected function setDefaultOptions(array $options=[])
 	{
 		$this->defaultOptions = [
-			'foreign_key' => Str::singular($this->model->getTable()).'_'.$this->model->getKeyName(),
+			'foreign_key' => $this->model->getForeignKey(),
 			'primary_key' => $this->model->getKeyName()
 		];
 	}
 
 	/**
-	 * preparation set options
+	 * styling text
 	 *
 	 * @return void
 	 */
-	protected function preparationSetOptions()
+	protected function stylingText()
 	{
-		$modelTable = $table = $this->model->getTable();
-		$toModelTable = $table = $this->toModel->getTable();
-		$foreignKey = $this->checkingOptions['foreign_key'];
-		$primaryKey = $this->checkingOptions['primary_key'];
+		$modelTable = $this->model->getTable();
+		$toModelTable = $this->toModel->getTable();
+		$foreignKey = $this->defaultOptions['foreign_key'];
+		$primaryKey = $this->defaultOptions['primary_key'];
 
 		$this->text = [
-			'table' => "[".$this->paintString($modelTable ,'green')."]",
-			'to_table' => "[".$this->paintString($toModelTable ,'green')."]",
-			'foreign_key' => "[".$this->paintString($foreignKey ,'green')."]",
-			'primary_key' => "[".$this->paintString($primaryKey ,'green')."]",
-			'primary_text' => $this->paintString('primary key', 'light_gray'),
-			'foreign_text' => $this->paintString('foreign key', 'light_gray')
+			'table' => "[".$this->command->paintString($modelTable ,'green')."]",
+			'to_table' => "[".$this->command->paintString($toModelTable ,'green')."]",
+			'foreign_key' => "[".$this->command->paintString($foreignKey ,'green')."]",
+			'primary_key' => "[".$this->command->paintString($primaryKey ,'green')."]",
+			'primary_text' => $this->command->paintString('primary key', 'brown'),
+			'foreign_text' => $this->command->paintString('foreign key', 'brown')
 		];
 	}
 
@@ -57,17 +49,17 @@ class HasOne extends Model
 	{
 		$modelTable = $table = $this->model->getTable();
 		$toModelTable = $table = $this->toModel->getTable();
-		$foreignKey = $this->checkingOptions['foreign_key'];
-		$primaryKey = $this->checkingOptions['primary_key'];
+		$foreignKey = $this->defaultOptions['foreign_key'];
+		$primaryKey = $this->defaultOptions['primary_key'];
 		
-		if (! $this->database->isFieldExists($toModelTable, $foreignKey)) {
-			print("Can't find field {$this->text['foreign_key']} in the table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}");
-			$this->options['foreign_key'] = $this->command->choice("choice one!", $this->getFields($toModelTable));
+		if (! $this->db->isFieldExists($toModelTable, $foreignKey)) {
+			$question = "Can't find field {$this->text['foreign_key']} in the table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}, choice one!";
+			$this->options['foreign_key'] = $this->command->choice($question, $this->getFields($toModelTable));
 		}
 
-		if (! $this->database->isFieldExists($modelTable, $primaryKey)) {
-			print("Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}");
-			$this->options['primary_key'] = $this->command->choice("\n choice one!", $this->getFields($modelTable));
+		if (! $this->db->isFieldExists($modelTable, $primaryKey)) {
+			$question = "Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}, choice one!";
+			$this->options['primary_key'] = $this->command->choice($question, $this->getFields($modelTable));
 		}
 	}
 
@@ -80,7 +72,7 @@ class HasOne extends Model
 	{
 		return [
 			"There should be field {$this->text['foreign_key']} in table {$this->text['to_table']} as {$this->text['foreign_text']} of table {$this->text['table']}",
-			"There should be field {$this->text['primary_key']} in table {$this->text['table']} as {$this->text['primary_text']} of table {$this->text['table']}"
+			"There should be field {$this->text['primary_key']} in table {$this->text['table']} as {$this->text['primary_text']}"
 		];
 	}
 
@@ -91,11 +83,11 @@ class HasOne extends Model
 	 */
 	protected function askToUseCustomeOptions()
 	{
-		print("The {$this->text['foreign_text']} of table {$this->text['table']} in the table {$this->text['to_table']}");
-		$this->options['foreign_key'] = $this->command->ask("will be?", $this->defaultOptions['foreign_key']);
+		$question = "The {$this->text['foreign_text']} of table {$this->text['table']} in the table {$this->text['to_table']}, will be?";
+		$this->options['foreign_key'] = $this->command->ask($question, $this->defaultOptions['foreign_key']);
 
-		print("The {$this->text['primary_text']} of the table {$this->text['table']}");
-		$this->options['primary_key'] = $this->command->ask("\n will be?", $this->defaultOptions['primary_key']);
+		$question = "The {$this->text['primary_text']} of the table {$this->text['table']}, will be?";
+		$this->options['primary_key'] = $this->command->ask($question, $this->defaultOptions['primary_key']);
 	}
 
 	/**

@@ -5,7 +5,7 @@ namespace Flipbox\OrmManager\BothRelations;
 class MorphOneToMany extends MorphOneToOne
 {
     /**
-     * build relations model to model
+     * build relations between models
      *
      * @return void
      */
@@ -13,10 +13,10 @@ class MorphOneToMany extends MorphOneToOne
     {
         $this->command->buildMethod($this->model, 'morphTo', null, $this->options);
 
-        $this->toModels[] = $this->toModel;
-
-        foreach ($this->toModels as $model) {
-            $this->command->buildMethod($model, 'morphMany', $this->model, $this->options);
+        foreach ($this->toModels as $key => $toModel) {
+            $options = $this->options;
+            $options['primary_key'] = $this->options['primary_key'][$key];
+            $this->command->buildMethod($toModel, 'morphMany', $this->model, $options);
         }
     }
 }

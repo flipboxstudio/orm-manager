@@ -23,13 +23,29 @@ class MorphOne extends MorphTo
     /**
      * set default options
      *
+     * @param $options
      * @return void
      */
-    protected function setDefaultOptions()
+    protected function setDefaultOptions(array $options=[])
     {
-        parent::setDefaultOptions();
+
+        parent::setDefaultOptions($options);
 
         $this->defaultOptions['primary_key'] = $this->toModel->getKeyName();
+    }
+
+    /**
+     * styling text
+     *
+     * @return void
+     */
+    protected function stylingText()
+    {
+        parent::stylingText();
+
+        $this->text['table'] = "[".$this->command->paintString($this->model->getTable(), 'green')."]";
+        $this->text['primary_key'] = "[".$this->command->paintString($this->defaultOptions['primary_key'], 'green')."]";
+        $this->text['primary_text'] = $this->command->paintString('primary key', 'brown');
     }
     
     /**
@@ -41,10 +57,10 @@ class MorphOne extends MorphTo
     {
         parent::setConnectedRelationOptions();
 
-        if (! $this->database->isFieldExists($table = $this->model->getTable(), $primaryKey = $this->defaultOptions['primary_key'])) {
+        if (! $this->db->isFieldExists($table = $this->model->getTable(), $this->defaultOptions['primary_key'])) {
             $this->options['primary_key'] = $this->command->choice(
-                "Can't find field {$primaryKey} in the table {$table} as primary key of table {$table}, choice one!",
-                $this->database->getTableFields($table)
+                "Can't find field {$this->text['primary_key']} in the table {$this->text['table']} as {$this->text['primary_text']}, choice one!",
+                $this->getFields($table)
             );
         }
     }
@@ -57,7 +73,7 @@ class MorphOne extends MorphTo
      */
     protected function getMethodName($name)
     {
-        return Str::plural($name);
+        return $name;
     }
 
     /**
@@ -67,12 +83,11 @@ class MorphOne extends MorphTo
      */
     protected function getRelationOptionsRules()
     {
-        return [
-            "Relation name is {$this->defaultOptions['name']}",
-            "There should be field {$this->defaultOptions['type']} in table {$this->model->getTable()}",
-            "There should be field {$this->defaultOptions['id']} in table {$this->model->getTable()}",
-            "There should be field {$this->defaultOptions['primary_key']} in table {$this->toModel->getTable()} as primary key of table {$this->toModel->getTable()}"
-        ];
+        $rules = parent::getRelationOptionsRules();
+
+        $rules[] = "There should be field {$this->text['primary_key']} in table {$this->text['table']} as {$this->text['primary_text']}";
+
+        return $rules;
     }
 
     /**
@@ -85,7 +100,7 @@ class MorphOne extends MorphTo
         parent::askToUseCustomeOptions();
 
         $this->options['primary_key'] = $this->command->ask(
-                                            "The primary key of the table {$this->model->getTable()} will be?",
+                                            "The {$this->text['primary_text']} of the table {$this->text['table']} will be?",
                                             $this->defaultOptions['primary_key']
                                         );
     }
