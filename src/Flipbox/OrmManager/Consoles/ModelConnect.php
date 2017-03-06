@@ -13,8 +13,6 @@ use Flipbox\OrmManager\Exceptions\RelationNotAvailable;
 
 class ModelConnect extends Command
 {
-    use FontColor;
-
     /**
      * database
      *

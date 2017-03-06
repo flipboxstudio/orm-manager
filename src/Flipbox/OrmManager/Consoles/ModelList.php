@@ -8,8 +8,6 @@ use Flipbox\OrmManager\DatabaseConnection;
 
 class ModelList extends Command
 {
-    use FontColor;
-
 	/**
 	 * database connection
 	 *

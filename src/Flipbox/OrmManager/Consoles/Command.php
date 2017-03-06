@@ -71,7 +71,7 @@ class Command extends LaravelCommand
     {
         $string = $this->paintString("{$string}", 'green');
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
 
     /**
@@ -84,7 +84,7 @@ class Command extends LaravelCommand
     {
         $string = $this->paintString(" {$string} ", $forgeground, $backgorund);
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
 
     /**
@@ -97,7 +97,7 @@ class Command extends LaravelCommand
     {
         $string = $this->paintString("{$string}", 'red');
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
     
     /**
@@ -111,18 +111,6 @@ class Command extends LaravelCommand
     {
         $string = $this->paintString(" Warning : {$string} ", 'white', 'yellow', 'italic');
 
-        $this->print($string);
-    }
-
-    /**
-     * Write a string as warning output.
-     *
-     * @param  string  $string
-     * @param  null|int|string  $verbosity
-     * @return void
-     */
-    public function print($string)
-    {
-        print($string)."\r\n";
+        echo $string ."\n\r";
     }
 }

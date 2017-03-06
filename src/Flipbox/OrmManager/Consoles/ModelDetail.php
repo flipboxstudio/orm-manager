@@ -9,8 +9,6 @@ use Flipbox\OrmManager\DatabaseConnection;
 
 class ModelDetail extends Command
 {
-    use FontColor;
-
     /**
      * database
      *
