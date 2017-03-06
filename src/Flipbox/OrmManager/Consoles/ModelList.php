@@ -3,16 +3,12 @@
 namespace Flipbox\OrmManager\Consoles;
 
 use Exception;
-use Illuminate\Console\Command;
 use Flipbox\OrmManager\ModelManager;
 use Flipbox\OrmManager\DatabaseConnection;
-use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelList extends Command
 {
-    use LocalComand, FontColor {
-        FontColor::paintString insteadof LocalComand;
-    }
+    use FontColor;
 
 	/**
 	 * database connection

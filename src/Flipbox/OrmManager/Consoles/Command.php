@@ -2,8 +2,12 @@
 
 namespace Flipbox\OrmManager\Consoles;
 
-trait Command
+use Illuminate\Console\Command as LaravelCommand;
+
+class Command extends LaravelCommand
 {
+    use FontColor;
+
     /**
      * Prompt the user for input.
      *
@@ -121,5 +125,4 @@ trait Command
     {
         print($string)."\r\n";
     }
-
 }
