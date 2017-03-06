@@ -2,8 +2,12 @@
 
 namespace Flipbox\OrmManager\Consoles;
 
-trait Command
+use Illuminate\Console\Command as LaravelCommand;
+
+class Command extends LaravelCommand
 {
+    use FontColor;
+
     /**
      * Prompt the user for input.
      *
@@ -67,7 +71,7 @@ trait Command
     {
         $string = $this->paintString("{$string}", 'green');
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
 
     /**
@@ -80,7 +84,7 @@ trait Command
     {
         $string = $this->paintString(" {$string} ", $forgeground, $backgorund);
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
 
     /**
@@ -93,7 +97,7 @@ trait Command
     {
         $string = $this->paintString("{$string}", 'red');
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
     
     /**
@@ -107,19 +111,6 @@ trait Command
     {
         $string = $this->paintString(" Warning : {$string} ", 'white', 'yellow', 'italic');
 
-        $this->print($string);
+        echo $string ."\n\r";
     }
-
-    /**
-     * Write a string as warning output.
-     *
-     * @param  string  $string
-     * @param  null|int|string  $verbosity
-     * @return void
-     */
-    public function print($string)
-    {
-        print($string)."\r\n";
-    }
-
 }

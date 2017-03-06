@@ -91,6 +91,13 @@ abstract class Relation
 	protected $text = [];
 
 	/**
+	 * method name
+	 *
+	 * @var string
+	 */
+	protected $method;
+
+	/**
 	 * Create a new Model instance.
 	 *
 	 * @param Command $command
@@ -111,9 +118,12 @@ abstract class Relation
 		$this->db = $this->manager->db;
 		$this->model = $this->reverse ? $toModel : $model;
 		$this->toModel = $this->reverse ? $model : $toModel;
-
-		$this->showCaptionProcess($model, $toModel);
+		
 		$this->setDefaultOptions($options);
+		$this->showCaptionProcess($model, $toModel);
+
+		$this->method = $this->generateMethodName();
+
 		$this->stylingText();
 		$this->setRelationOptions($options);
 	}
@@ -199,12 +209,12 @@ abstract class Relation
 	 */
 	public function buildMethod()
 	{
-		$methodName = $this->generateMethodName();
+		$this->method = $this->generateMethodName();
 		$stub = file_get_contents($this->getStub());
 		$model = $this->reverse ? $this->toModel : $this->model;
 		$modelName = $this->manager->getClassName($model);
 
-		$stub = str_replace('DummyMethodName', $methodName, $stub);
+		$stub = str_replace('DummyMethodName', $this->method, $stub);
 		$stub = str_replace('DummyModel', strtolower($modelName), $stub);
 		
 		if (! is_null($this->toModel)) {
