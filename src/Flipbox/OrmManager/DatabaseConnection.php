@@ -65,6 +65,7 @@ class DatabaseConnection
 			
 			$platform = $this->doctrine->getDatabasePlatform();
 			$platform->registerDoctrineTypeMapping('enum', 'string');
+			$platform->registerDoctrineTypeMapping('json', 'json_array');
 			
 			$this->connection = true;
 		} catch (PDOException $e) {

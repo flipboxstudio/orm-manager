@@ -4,21 +4,15 @@ namespace Flipbox\OrmManager\Consoles;
 
 use Exception;
 use Illuminate\Support\Str;
-use Illuminate\Console\Command;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\DatabaseConnection;
 use Flipbox\OrmManager\Exceptions\ModelNotFound;
 use Flipbox\OrmManager\Exceptions\MethodAlreadyExists;
 use Flipbox\OrmManager\Exceptions\RelationNotAvailable;
-use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelConnect extends Command
 {
-	use LocalComand, FontColor {
-        FontColor::paintString insteadof LocalComand;
-    }
-
     /**
      * database
      *

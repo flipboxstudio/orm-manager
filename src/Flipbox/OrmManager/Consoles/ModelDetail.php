@@ -2,18 +2,13 @@
 
 namespace Flipbox\OrmManager\Consoles;
 
-use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use Flipbox\OrmManager\ModelManager;
 use Illuminate\Database\Eloquent\Model;
 use Flipbox\OrmManager\DatabaseConnection;
-use Flipbox\OrmManager\Consoles\Command as LocalComand;
 
 class ModelDetail extends Command
 {
-    use LocalComand, FontColor {
-        FontColor::paintString insteadof LocalComand;
-    }
-
     /**
      * database
      *
@@ -171,25 +166,17 @@ class ModelDetail extends Command
             'scopes' => $this->manager->getScopes($model),
         ];
 
-        $rows = [];
+         $rows = [];
 
-        foreach (max($properties) as $property => $method) {
-            $mutator = '';
-            if (($mutators = &$properties['mutators'])->count() > 0) {
-                $mutator = $this->paintString($mutators->first()->getName(), 'brown');
-                unset($mutators[0]);
-            }
+        foreach (max($properties) as $property) {
+            foreach (['mutator', 'accessor', 'scope'] as $type) {
+                $$type = '';
+                $types = &$properties[Str::plural($type)];
 
-            $accessor = '';
-            if (($accessors = &$properties['accessors'])->count() > 0) {
-                $accessor = $this->paintString($accessors->first()->getName(), 'brown');
-                unset($accessors[0]);
-            }
-
-            $scope = '';
-            if (($scopes = &$properties['scopes'])->count() > 0) {
-                $scope = $this->paintString($scopes->first()->getName(), 'brown');
-                unset($scopes[0]);
+                if ($types->count() > 0) {
+                    $$type = $this->paintString($types->first()->getName(), 'brown');
+                    unset($types[0]);
+                }
             }
 
             $rows[] = [$mutator, $accessor, $scope];
