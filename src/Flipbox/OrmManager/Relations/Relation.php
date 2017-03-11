@@ -70,11 +70,11 @@ abstract class Relation
 	protected $requiredOptions = [];
 
 	/**
-	 * new line
+	 * prefix new line
 	 *
 	 * @var string
 	 */
-	protected $newline = "\n";
+	protected $prefixNewline = PHP_EOL;
 
 	/**
 	 * reverse operation
@@ -343,7 +343,7 @@ abstract class Relation
 		preg_match("[\s+\/\/]", $modelCode, $matches);
 
 		if (count($matches) > 0) {
-			$this->newline = "";
+			$this->prefixNewline = "";
 			$modelCode = preg_replace("[\s+\/\/]", '', $modelCode);
 		}
 
@@ -360,10 +360,36 @@ abstract class Relation
 	 */
 	protected function writeMethodToFile($filePath, $modelCode, $methodCode)
 	{
-		file_put_contents (
-			$filePath,
-			str_replace("\n}\n", $this->newline."\n".$methodCode."\n}\n", $modelCode)
-		);
+		$modelCode = $this->normalizeLineEndings($modelCode);
+		$fileCode = $this->appendMethodToClass($modelCode, $methodCode);
+		
+		file_put_contents($filePath, $fileCode);
+	}
+
+	/**
+	 * Normalizes all line endings in this string
+	 *
+	 * @param string $string
+	 * @return string
+	 */
+	protected function normalizeLineEndings($string)
+	{
+		return preg_replace('/\R/u', PHP_EOL, $string);
+	}
+
+	/**
+	 * append method to class
+	 *
+	 * @param string $modelCode
+	 * @param string $modelCode
+	 * @return string
+	 */
+	protected function appendMethodToClass($modelCode, $methodCode)
+	{
+		$pattern = "/(\})[^\}]*$/";
+		$methodCode = $this->prefixNewline.$methodCode.PHP_EOL."}".PHP_EOL;
+
+		return preg_replace($pattern, $methodCode, $modelCode);
 	}
 
 	/**
@@ -382,7 +408,7 @@ abstract class Relation
 		});
 
 		$rules[] = 'confirm that you will create the database schema as above!';
-		$confirm = implode("\n ", $rules);
+		$confirm = implode(PHP_EOL.' ', $rules);
 
 		if (! $this->command->confirm($confirm, true)) {
 			$this->command->warn('You are trying to use custome options to connect models!');

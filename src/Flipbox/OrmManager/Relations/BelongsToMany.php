@@ -69,7 +69,7 @@ class BelongsToMany extends Relation
 		if (! $this->db->isTableExists($pivotTable)) {
 			$question = "Can't find table {$this->text['pivot_table']} in the database as {$this->text['pivot_text']}, choice one!";
 			$pivotTable = $this->options['pivot_table'] = $this->command->choice(
-				$question, $this->getTables());
+				$question, $this->getTables()->keys()->toArray());
 
 			$this->text['pivot_table'] = "[".$this->command->paintString($pivotTable, 'green')."]";
 		}

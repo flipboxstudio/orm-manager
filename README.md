@@ -1,4 +1,10 @@
 # Laravel ORM Manager
+
+[![Total Downloads](https://poser.pugx.org/flipbox/orm-manager/d/total.svg)](https://packagist.org/packages/flipbox/orm-manager)
+[![Latest Stable Version](https://poser.pugx.org/flipbox/orm-manager/v/stable.svg)](https://packagist.org/packages/flipbox/orm-manager)
+[![Latest Unstable Version](https://poser.pugx.org/flipbox/orm-manager/v/unstable.svg)](https://packagist.org/packages/flipbox/orm-manager)
+[![License](https://poser.pugx.org/flipbox/orm-manager/license.svg)](https://packagist.org/packages/flipbox/orm-manager)
+
 This package is manager for laravel or lumen ORM (object relational mapping) Model. You can generate relation method and control Model development in your project. **Relation method** is method in Model class that reference to another Model for get data in related Model. For example you have a model **User** and **Phone** with relation one to one. Both model will be called connected if there is relation method in both class.
 In class User.php there should be
 ```php
@@ -35,11 +41,11 @@ composer require flipbox/orm-manager
 ```
 Add service provider for Laravel in the file `config/app.php`
 ```
-Flipbox\OrmManager\LaravelServiceProvider::class,
+Flipbox\OrmManager\OrmManagerServiceProvider::class,
 ```
 Add service provider for Lumen in the file `bootstrap/app.php`
 ```
-$app->register(Flipbox\OrmManager\LumenServiceProvider::class);
+$app->register(Flipbox\OrmManager\OrmManagerServiceProvider::class);
 ```
 ## Features
 See `php artisan` in console, if you install this package correctly you will see list of features with prefix `orm:`
