@@ -97,7 +97,7 @@ class ModelDetail extends Command
 
         $this->showDatabaseFields($model);
         $this->showRelatoins($model);
-        $this->showProperty($model);
+        $this->showModifier($model);
     }
 
     /**
@@ -149,18 +149,18 @@ class ModelDetail extends Command
     }
 
     /**
-     * show table property
+     * show model modifier
      *
      * @param Model $model
      * @return void
      */
-    protected function showProperty(Model $model)
+    protected function showModifier(Model $model)
     {
         $name = $this->manager->getClassName($model);
 
-        $this->title("Property of Model {$name}: ");
+        $this->title("Modifier of Model {$name}: ");
 
-        $properties = [
+        $modifiers = [
             'mutators' => $this->manager->getMutators($model),
             'accessors' => $this->manager->getAccessors($model),
             'scopes' => $this->manager->getScopes($model),
@@ -168,10 +168,10 @@ class ModelDetail extends Command
 
          $rows = [];
 
-        foreach (max($properties) as $property) {
+        foreach (max($modifiers) as $modifier) {
             foreach (['mutator', 'accessor', 'scope'] as $type) {
                 $$type = '';
-                $types = &$properties[Str::plural($type)];
+                $types = &$modifiers[Str::plural($type)];
 
                 if ($types->count() > 0) {
                     $$type = $this->paintString($types->first()->getName(), 'brown');
