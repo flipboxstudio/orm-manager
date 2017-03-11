@@ -4,7 +4,7 @@ namespace Flipbox\OrmManager;
 
 use Illuminate\Support\ServiceProvider;
 
-class LaravelServiceProvider extends ServiceProvider
+class OrmManagerServiceProvider extends ServiceProvider
 {
 	/**
      * Perform post-registration booting of services.
@@ -12,7 +12,7 @@ class LaravelServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->publishes([
-            __DIR__.'/Config/orm.php' => config_path('orm.php'),
+            __DIR__.'/Config/orm.php' => base_path('config/orm.php'),
         ], 'config');
     }
 	
